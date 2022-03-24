@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:gnsklad/gallery_screen.dart';
+import 'package:gnsklad/gallery_screen_s.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'camera_screen.dart';
@@ -193,12 +194,13 @@ firstload();
                   //  tileColor: selectedpost==index ? Colors.blue : null,
                   //  textColor: selectedpost==index ? Colors.white : null,
                     title: Text('${items[index].name}'),
+                    subtitle: Text('ИНН: ${items[index].inn}'),
                     trailing: IconButton( icon: Icon(Icons.arrow_forward_sharp), onPressed: () {
 
                       Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => GalleryScreen(items[index]
+                              builder: (context) => GalleryScreen2(items[index]
                               )));
                     },),
                   );
