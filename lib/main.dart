@@ -77,7 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if(query.isNotEmpty) {
       List<postav> dummyListData = <postav>[];
       dummySearchList.forEach((item) {
-        if(item.name!.toUpperCase().contains(query.toUpperCase())) {
+        if(item.name!.toUpperCase().contains(query.toUpperCase()) || item.inn!.toUpperCase().contains(query.toUpperCase())) {
           dummyListData.add(item);
         }
       });
@@ -162,7 +162,7 @@ firstload();
                 controller: editingController,
                 decoration: InputDecoration(
                     labelText: "Поставщик",
-                    hintText: "Поставщик",
+                    hintText: "Поставщик (можно ИНН)",
                     prefixIcon: Icon(Icons.search),
                     suffixIcon: IconButton(icon: Icon(Icons.clear_sharp,color: Colors.black), onPressed: () { editingController.clear(); filterSearchResults("");;},),
                     border: OutlineInputBorder(

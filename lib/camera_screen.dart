@@ -317,7 +317,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     color: Colors.green,
                     size: 50,
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 ),
                 GestureDetector(
                   onTap: () async {
@@ -392,6 +392,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 GestureDetector(
                   onTap: () {
                     if (capturedImages.isEmpty) return;
+                    print(capturedImages[0]);
                     Navigator.push(
                         context,
                         MaterialPageRoute(

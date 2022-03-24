@@ -1,10 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 
 class GalleryScreen extends StatelessWidget {
   final List<File> images;
   const GalleryScreen({Key? key, required this.images}) : super(key: key);
+
 
   @override
   Widget build(BuildContext context) {
@@ -12,13 +15,55 @@ class GalleryScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Gallery'),
       ),
-      body: GridView.count(
-        crossAxisCount: 3,
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-        children: images
-            .map((image) => Image.file(image, fit: BoxFit.cover))
-            .toList(),
+      body: PhotoViewGallery.builder(
+
+        itemCount: images.length,
+       // customSize: Size(200,200),
+        builder: (context, index) {
+          return PhotoViewGalleryPageOptions.customChild(
+child: Container(
+  decoration: BoxDecoration(
+    image: DecorationImage(
+      image: AssetImage(images[index].path),
+      fit: BoxFit.cover,
+    ),
+  ),
+  child: Container(
+    padding: EdgeInsets.all(20),
+    alignment: Alignment.bottomCenter,
+    child:  Text("${index+1}/${images.length}",style: TextStyle(fontSize: 40,color: Colors.white,shadows: [
+    Shadow(
+        color: Colors.black.withOpacity(0.3),
+        offset: const Offset(5, 5),
+        blurRadius: 15),
+  ]),),) /* add child content here */,
+) ,//Image.asset(  images[index].path,),
+         //   imageProvider: AssetImage(images[index].path,),
+            //initialScale: PhotoViewComputedScale.contained * 1,
+            minScale: PhotoViewComputedScale.contained * 0.8,
+            maxScale: PhotoViewComputedScale.covered * 2,
+          );
+        },
+     //   scrollPhysics: BouncingScrollPhysics(),
+        backgroundDecoration: BoxDecoration(
+
+      //    borderRadius:BorderRadius.all(Radius.circular(20)),
+          color: Colors.black,
+        ),
+        scrollDirection:Axis.vertical,
+        enableRotation:false,
+        loadingBuilder: (context, event) => Center(
+          child: Container(
+            width: 60.0,
+            height: 60.0,
+            child: CircularProgressIndicator(
+              backgroundColor:Colors.blue,
+              value: event == null
+                  ? 0
+                  : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
+            ),
+          ),
+        ),
       ),
     );
   }
