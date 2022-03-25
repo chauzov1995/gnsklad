@@ -6,14 +6,22 @@ import 'package:photo_view/photo_view_gallery.dart';
 
 class GalleryScreen extends StatelessWidget {
   final List<File> images;
-  const GalleryScreen({Key? key, required this.images}) : super(key: key);
+   GalleryScreen({Key? key, required this.images}) : super(key: key){
+
+
+for(var asdasd in images){
+
+  print(asdasd.path);
+}
+   }
+
 
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Gallery'),
+        title: Text('Предпросмотр'),
       ),
       body: PhotoViewGallery.builder(
 
@@ -24,7 +32,7 @@ class GalleryScreen extends StatelessWidget {
 child: Container(
   decoration: BoxDecoration(
     image: DecorationImage(
-      image: AssetImage(images[index].path),
+      image: FileImage(images[index]),
       fit: BoxFit.cover,
     ),
   ),
