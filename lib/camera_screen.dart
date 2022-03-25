@@ -178,6 +178,17 @@ class _CameraScreenState extends State<CameraScreen> {
               children: [
                 IconButton(
                   onPressed: () async {
+
+
+                    if (capturedImages.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text("Ничего не сфотографировано"),
+                      ));
+
+                      return;
+                    }
+
+
                     showCupertinoModalPopup<void>(
                       context: context,
                       builder: (BuildContext context) {
@@ -214,13 +225,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
 
 
-                                          if (capturedImages.isEmpty) {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                              content: Text("Ничего не сфотографировано"),
-                                            ));
 
-                                            return;
-                                          }
                                           if (animphoto) return;
                                           setState(() {
                                             animphoto = true;
@@ -397,7 +402,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         context,
                         MaterialPageRoute(
                             builder: (context) => GalleryScreen(
-                                images: capturedImages.reversed.toList())));
+                                images: capturedImages)));
                   },
                   child: Container(
                     height: 60,

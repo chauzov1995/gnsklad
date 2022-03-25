@@ -7,7 +7,8 @@ import 'package:gnsklad/gallery_screen_s.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'camera_screen.dart';
-
+import 'package:flutter/services.dart';
+import 'package:flutter_datawedge/flutter_datawedge.dart';
 
 
 
@@ -96,15 +97,38 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
-
+  String _scannerStatus = "Scanner status";
+  String _lastCode = '';
+  bool _isEnabled = true;
   @override
   void initState() {
 
     super.initState();
-
+    initScanner();
 
 firstload();
 
+
+  }
+
+  void initScanner() {
+    FlutterDataWedge.initScanner(
+        profileName: 'gnprof',
+        onScan: (result){
+          setState(() {
+            _lastCode = result.data;
+            print(_lastCode);
+            editingController.text=_lastCode;
+            filterSearchResults(_lastCode);
+          });
+        },
+        onStatusUpdate: (result){
+          ScannerStatusType status = result.status;
+          setState(() {
+            _scannerStatus = status.toString().split('.')[1];
+          });
+        }
+    );
 
   }
 
