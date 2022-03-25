@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:gnsklad/main.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -33,6 +34,21 @@ class _CameraScreenState extends State<CameraScreen> {
     super.initState();
     fistasdib();
   }
+
+
+  void initScanner() {
+    FlutterDataWedge.initScanner(
+        profileName: 'gnprof',
+        onScan: (result) async {
+
+            await delaydoto();
+
+        },
+
+    );
+
+  }
+
 
   fistasdib() async {
     //очиститм локальные файлы старые
@@ -106,6 +122,70 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   DateTime dateTime = DateTime.now();
+
+
+  Future<void> delaydoto() async {
+    {
+      if (animphoto) return;
+      setState(() {
+        animphoto = true;
+      });
+
+      await _initializeControllerFuture;
+      var xFile = await _controller.takePicture();
+      setState(() {
+        capturedImages.add(File(xFile.path));
+      });
+
+      await Future.delayed(Duration(milliseconds: 500));
+
+      print("sfotal2");
+
+      setState(() {
+        animphoto = false;
+      });
+
+/*
+                    if(animphoto)return;
+                    setState(() {
+                      animphoto=true;
+                    });
+                    await _initializeControllerFuture;
+                    var xFile = await _controller.takePicture();
+                    setState(() {
+                      capturedImages.add(File(xFile.path));
+                    });
+                    print("sfotal");
+
+                    await Future.delayed(Duration(milliseconds: 500));
+
+                    print("sfotal2");
+
+
+                    setState(() {
+                      animphoto=false;
+                    });
+                 //   return;
+                    var postUri = Uri.parse("https://teplogico.ru/gn0/${widget.name.id}");
+
+                    http.MultipartRequest request =
+                        new http.MultipartRequest("POST", postUri);
+
+                    http.MultipartFile multipartFile =
+                        await http.MultipartFile.fromPath(
+                            'file_input', xFile.path);
+
+                    request.files.add(multipartFile);
+
+                    http.StreamedResponse response = await request.send();
+
+                    print(response.statusCode);
+                    print(await File(xFile.path).exists());
+                    await File(xFile.path).delete();
+                    print(await File(xFile.path).exists());
+                    */
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -325,66 +405,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 ),
                 GestureDetector(
-                  onTap: () async {
-                    if (animphoto) return;
-                    setState(() {
-                      animphoto = true;
-                    });
-
-                    await _initializeControllerFuture;
-                    var xFile = await _controller.takePicture();
-                    setState(() {
-                      capturedImages.add(File(xFile.path));
-                    });
-
-                    await Future.delayed(Duration(milliseconds: 500));
-
-                    print("sfotal2");
-
-                    setState(() {
-                      animphoto = false;
-                    });
-
-/*
-                    if(animphoto)return;
-                    setState(() {
-                      animphoto=true;
-                    });
-                    await _initializeControllerFuture;
-                    var xFile = await _controller.takePicture();
-                    setState(() {
-                      capturedImages.add(File(xFile.path));
-                    });
-                    print("sfotal");
-
-                    await Future.delayed(Duration(milliseconds: 500));
-
-                    print("sfotal2");
-
-
-                    setState(() {
-                      animphoto=false;
-                    });
-                 //   return;
-                    var postUri = Uri.parse("https://teplogico.ru/gn0/${widget.name.id}");
-
-                    http.MultipartRequest request =
-                        new http.MultipartRequest("POST", postUri);
-
-                    http.MultipartFile multipartFile =
-                        await http.MultipartFile.fromPath(
-                            'file_input', xFile.path);
-
-                    request.files.add(multipartFile);
-
-                    http.StreamedResponse response = await request.send();
-
-                    print(response.statusCode);
-                    print(await File(xFile.path).exists());
-                    await File(xFile.path).delete();
-                    print(await File(xFile.path).exists());
-                    */
-                  },
+                  onTap: () async {await delaydoto();},
                   child: Container(
                     height: 60,
                     width: 60,
