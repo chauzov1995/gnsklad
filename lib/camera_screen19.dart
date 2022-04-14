@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:camera/camera.dart';
+
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -16,23 +16,22 @@ import 'package:pdf/widgets.dart' as pw;
 
 import 'gallery_screen.dart';
 
-class CameraScreen extends StatefulWidget {
-  final List<CameraDescription> cameras;
+class CameraScreen19 extends StatefulWidget {
+
   postav name;
 
-  CameraScreen({
+  CameraScreen19({
     required this.name,
-    required this.cameras,
+
   });
 
   @override
-  _CameraScreenState createState() => _CameraScreenState();
+  _CameraScreen19State createState() => _CameraScreen19State();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreen19State extends State<CameraScreen19> {
   @override
   void initState() {
-    initializeCamera(selectedCamera); //Initially selectedCamera = 0
 
     super.initState();
     fistasdib();
@@ -61,23 +60,11 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  late CameraController _controller; //To control the camera
-  late Future<void>
-      _initializeControllerFuture; //Future to wait until camera initializes
-  int selectedCamera = 0;
+
+
   List<File> capturedImages = [];
 
-  initializeCamera(int cameraIndex) async {
-    _controller = CameraController(
-      // Get a specific camera from the list of available cameras.
-      widget.cameras[cameraIndex],
-      // Define the resolution to use.
-      ResolutionPreset.max,
-    );
 
-    // Next, initialize the controller. This returns a Future.
-    _initializeControllerFuture = _controller.initialize();
-  }
 
   Future<List<FileSystemEntity>> dirContents(Directory dir) {
     var files = <FileSystemEntity>[];
@@ -92,7 +79,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     // Dispose of the controller when the widget is disposed.
-    _controller.dispose();
+
     super.dispose();
   }
 
@@ -133,13 +120,16 @@ class _CameraScreenState extends State<CameraScreen> {
         animphoto = true;
       });
 
+      final ImagePicker _picker = ImagePicker();
 
-        await _initializeControllerFuture;
-        var xFile = await _controller.takePicture();
+
+        final XFile? photo =
+            await _picker.pickImage(source: ImageSource.camera);
+        // Pick a video
+        print(photo!.path.toString());
         setState(() {
-          capturedImages.add(File(xFile.path));
+          capturedImages.add(File(photo.path));
         });
-
 
       await Future.delayed(Duration(milliseconds: 100));
 
@@ -199,7 +189,7 @@ class _CameraScreenState extends State<CameraScreen> {
         children: [
           Expanded(
               child: FutureBuilder<void>(
-            future: _initializeControllerFuture,
+          //  future: _initializeControllerFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.done) {
                 // If the Future is complete, display the preview.
@@ -207,47 +197,14 @@ class _CameraScreenState extends State<CameraScreen> {
                     width: MediaQuery.of(context).size.width,
                     child: FittedBox(
                       fit: BoxFit.fitWidth,
-                      child: Container(
-                        height: MediaQuery.of(context).size.width *
-                            _controller.value.aspectRatio,
-                        width: MediaQuery.of(context).size.width,
-                        child: CameraPreview(
-                          _controller,
-                          child: AnimatedContainer(
-                            //  width: animphoto ? 200.0 : 100.0,
-                            //   height: animphoto ? 100.0 : 200.0,
-                            color:
-                                animphoto ? Colors.white70 : Colors.transparent,
-                            //    alignment:
-                            //    animphoto ? Alignment.center : AlignmentDirectional.topCenter,
-                            duration: const Duration(seconds: 1),
-                            curve: Curves.fastOutSlowIn,
 
-                            child: animphoto
-                                ? Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.cloud_upload,
-                                            size: 75, color: Colors.black),
-                                        Text(
-                                          "Отправка на сервер",
-                                          style: TextStyle(fontSize: 18),
-                                        )
-                                      ],
-                                    ),
-                                  )
-                                : Container(),
-                          ),
-                        ),
-                      )
                       // new CameraPreview(_controller),
 
-                      ,
+
                     ));
               } else {
                 // Otherwise, display a loading indicator.
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: Text("Для фото нажми кружочек",style: TextStyle(color: Colors.white,fontSize: 18),));
               }
             },
           )),
@@ -382,18 +339,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       },
                     );
 
-                    return;
-                    if (widget.cameras.length > 1) {
-                      setState(() {
-                        selectedCamera = selectedCamera == 0 ? 1 : 0;
-                        initializeCamera(selectedCamera);
-                      });
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text('No secondary camera found'),
-                        duration: const Duration(seconds: 2),
-                      ));
-                    }
+
                   },
                   icon: Icon(
                     Icons.check_circle_sharp,

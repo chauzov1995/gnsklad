@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:camera/camera.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:gnsklad/camera_screen19.dart';
 import 'package:gnsklad/gallery_screen.dart';
 import 'package:gnsklad/gallery_screen_s.dart';
 import 'dart:async';
@@ -10,7 +12,7 @@ import 'camera_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 
-
+ int sdkver=21;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -134,6 +136,10 @@ firstload();
 
   firstload () async {
 
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+    print(androidInfo.version.sdkInt);
+    sdkver=androidInfo.version.sdkInt!;
   http://teplogico.ru/gn-spispost
   var  response = await  http.get(Uri.parse('http://teplogico.ru/gn-spispost'));
 
@@ -209,7 +215,7 @@ firstload();
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => CameraScreen(name:items[index], cameras: widget.cameras),
+                            builder: (context) => sdkver>=21? CameraScreen(name:items[index], cameras: widget.cameras): CameraScreen19(name:items[index]),
                         ));
 
 
