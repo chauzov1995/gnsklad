@@ -197,14 +197,62 @@ class _CameraScreen19State extends State<CameraScreen19> {
                     width: MediaQuery.of(context).size.width,
                     child: FittedBox(
                       fit: BoxFit.fitWidth,
+                      child: Container(
+                     height: double.infinity,
+                        width:double.infinity,
+                        child:  AnimatedContainer(
+                             // width: animphoto ? 200.0 : 100.0,
+                            //   height: animphoto ? 100.0 : 200.0,
+                            color:
+                            animphoto ? Colors.white70 : Colors.transparent,
+                            //    alignment:
+                            //    animphoto ? Alignment.center : AlignmentDirectional.topCenter,
+                            duration: const Duration(seconds: 1),
+                            curve: Curves.fastOutSlowIn,
 
+                            child: animphoto
+                                ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.cloud_upload,
+                                      size: 75, color: Colors.black),
+                                  Text(
+                                    "Отправка на сервер",
+                                    style: TextStyle(fontSize: 18),
+                                  )
+                                ],
+                              ),
+                            )
+                                : Container(),
+
+                        ),
+                      )
                       // new CameraPreview(_controller),
 
-
+                      ,
                     ));
               } else {
                 // Otherwise, display a loading indicator.
-                return const Center(child: Text("Для фото нажми кружочек",style: TextStyle(color: Colors.white,fontSize: 18),));
+                return
+                  Center(
+
+                    child:AnimatedContainer(height: double.infinity,width: double.infinity, color:  animphoto ? Colors.white70 : Colors.transparent,    duration: const Duration(seconds: 1),
+                      curve: Curves.fastOutSlowIn,child: animphoto
+                            ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.cloud_upload,
+                                  size: 75, color: Colors.black),
+                              Text(
+                                "Отправка на сервер",
+                                style: TextStyle(fontSize: 18),
+                              )
+                            ],
+                          ),
+                        )
+                            : Center(child:Text("Для фото нажми кружочек",style: TextStyle(color: Colors.white,fontSize: 18),)) ) );
               }
             },
           )),
@@ -301,6 +349,14 @@ class _CameraScreen19State extends State<CameraScreen19> {
                                           print(response.statusCode);
 
                                           capturedImages.clear();
+
+
+
+                                          database.rawInsert(
+                                              'insert or replace into Test(id, sort) VALUES (${widget.name.id}, (select sort from Test where id = ${widget.name.id})+1) ');
+
+
+
 
                                           await Future.delayed(
                                               Duration(milliseconds: 100));

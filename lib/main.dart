@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -9,16 +10,27 @@ import 'package:gnsklad/gallery_screen_s.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'camera_screen.dart';
+import 'package:sqflite/sqflite.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 
  int sdkver=21;
+late Database database;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Obtain a list of the available cameras on the device.
   final cameras = await availableCameras();
   runApp(MyApp(cameras: cameras));
+}
+
+class MyHttpOverrides extends HttpOverrides{
+  @override
+  HttpClient createHttpClient(SecurityContext? context){
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port)=> true;
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -106,6 +118,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
 
     super.initState();
+
+    HttpOverrides.global = MyHttpOverrides();
     initScanner();
 
 firstload();
@@ -136,6 +150,28 @@ firstload();
 
   firstload () async {
 
+
+
+
+
+
+// open the database
+     database = await openDatabase('my_db.db', version: 1,
+        onCreate: (Database db, int version) async {
+          // When creating the db, create the table
+          await db.execute(
+              'CREATE TABLE Test (id INTEGER PRIMARY KEY, sort INTEGER NOT NULL DEFAULT 1)');
+        });
+
+
+     List<Map> list = await database.rawQuery('SELECT * FROM Test order by sort desc');
+  //   print("records");
+        print(list);
+
+  //  await database.close();
+
+
+
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
     print(androidInfo.version.sdkInt);
@@ -143,9 +179,21 @@ firstload();
   http://teplogico.ru/gn-spispost
   var  response = await  http.get(Uri.parse('http://teplogico.ru/gn-spispost'));
 
-  duplicateItems = (json.decode(response.body) as List)
+        List<postav> prrreeee= (json.decode(response.body) as List)
       .map((data) => postav.fromJson(data))
       .toList();
+
+        for(var elem in list)
+          {
+            var asdasdad= prrreeee.firstWhere((element) => element.id==elem['id']);
+            duplicateItems.add(asdasdad);
+            prrreeee.remove(asdasdad);
+
+
+
+          }
+
+     duplicateItems.addAll(prrreeee);
 
   setState(() {
 
