@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:flutter/material.dart';
 import 'package:gnsklad/main.dart';
@@ -11,9 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 class GalleryScreen2 extends StatefulWidget {
   postav name;
 
-  GalleryScreen2(this.name){
-
-  }
+  GalleryScreen2(this.name, {Key? key}) : super(key: key);
 
   @override
   _GalleryScreen2State createState() => _GalleryScreen2State();
@@ -52,7 +48,7 @@ class _GalleryScreen2State extends State<GalleryScreen2> {
       appBar: AppBar(
         title: Text(widget.name.name!),
       ),
-      body: Padding(padding: EdgeInsets.only(top: 10),
+      body: Padding(padding: const EdgeInsets.only(top: 10),
       child:  ListView.separated(
 
         itemBuilder: (BuildContext context, int index) { return
@@ -96,10 +92,10 @@ class photo {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['id'] = this.id;
-    data['path'] = this.path;
-    data['timeselect'] = this.timeselect;
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['id'] = id;
+    data['path'] = path;
+    data['timeselect'] = timeselect;
     return data;
   }
 }

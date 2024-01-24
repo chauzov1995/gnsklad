@@ -2,16 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:gnsklad/main.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'gallery_screen.dart';
@@ -20,10 +16,10 @@ class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
   postav name;
 
-  CameraScreen({
+  CameraScreen({Key? key, 
     required this.name,
     required this.cameras,
-  });
+  }) : super(key: key);
 
   @override
   _CameraScreenState createState() => _CameraScreenState();
@@ -91,7 +87,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   bool animphoto = false;
 
-  double _kPickerSheetHeight = 350.0;
+  final double _kPickerSheetHeight = 350.0;
 
   Widget _buildBottomPicker(Widget picker) {
     return Container(
@@ -134,7 +130,7 @@ class _CameraScreenState extends State<CameraScreen> {
         });
 
 
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
 
       print("sfotal2");
 
@@ -196,11 +192,11 @@ class _CameraScreenState extends State<CameraScreen> {
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.done) {
                 // If the Future is complete, display the preview.
-                return Container(
+                return SizedBox(
                     width: MediaQuery.of(context).size.width,
                     child: FittedBox(
                       fit: BoxFit.fitWidth,
-                      child: Container(
+                      child: SizedBox(
                         height: MediaQuery.of(context).size.width *
                             _controller.value.aspectRatio,
                         width: MediaQuery.of(context).size.width,
@@ -217,7 +213,7 @@ class _CameraScreenState extends State<CameraScreen> {
                             curve: Curves.fastOutSlowIn,
 
                             child: animphoto
-                                ? Center(
+                                ? const Center(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -256,7 +252,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 IconButton(
                   onPressed: () async {
                     if (capturedImages.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text("Ничего не сфотографировано"),
                       ));
 
@@ -283,6 +279,8 @@ class _CameraScreenState extends State<CameraScreen> {
                                 },
                               )),
                               Row(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.all(20.0),
@@ -312,9 +310,8 @@ class _CameraScreenState extends State<CameraScreen> {
                                             })); // Page
                                           }
                                           var pathsave =
-                                              (await getTemporaryDirectory())
-                                                      .path +
-                                                  "/example.pdf";
+                                              "${(await getTemporaryDirectory())
+                                                      .path}/example.pdf";
                                           final file = File(pathsave);
                                           await file
                                               .writeAsBytes(await pdf.save());
@@ -323,7 +320,7 @@ class _CameraScreenState extends State<CameraScreen> {
                                               "https://teplogico.ru/gn0/${widget.name.id}/${dateTime.millisecondsSinceEpoch / 1000}");
 
                                           http.MultipartRequest request =
-                                              new http.MultipartRequest(
+                                              http.MultipartRequest(
                                                   "POST", postUri);
 
                                           http.MultipartFile multipartFile =
@@ -339,7 +336,7 @@ class _CameraScreenState extends State<CameraScreen> {
                                           capturedImages.clear();
 
                                           await Future.delayed(
-                                              Duration(milliseconds: 100));
+                                              const Duration(milliseconds: 100));
 
                                           setState(() {
                                             animphoto = false;
@@ -355,8 +352,8 @@ class _CameraScreenState extends State<CameraScreen> {
                                           ),
                                           //   elevation: 15.0,
                                         ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(15.0),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(15.0),
                                           child: Text(
                                             'ОТПРАВИТЬ',
                                             style: TextStyle(fontSize: 15),
@@ -366,8 +363,6 @@ class _CameraScreenState extends State<CameraScreen> {
                                     ),
                                   ),
                                 ],
-                                mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment: MainAxisAlignment.end,
                               )
                             ],
                           ),
@@ -382,18 +377,18 @@ class _CameraScreenState extends State<CameraScreen> {
                         initializeCamera(selectedCamera);
                       });
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text('No secondary camera found'),
-                        duration: const Duration(seconds: 2),
+                        duration: Duration(seconds: 2),
                       ));
                     }
                   },
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.check_circle_sharp,
                     color: Colors.green,
                     size: 50,
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 ),
                 GestureDetector(
                   onTap: () async {
@@ -402,7 +397,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   child: Container(
                     height: 60,
                     width: 60,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white,
                     ),

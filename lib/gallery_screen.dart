@@ -6,9 +6,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 class GalleryScreen extends StatefulWidget {
   List<File> images;
 
-  GalleryScreen({required this.images}){
-
-  }
+  GalleryScreen({Key? key, required this.images}) : super(key: key);
 
   @override
   _GalleryScreenState createState() => _GalleryScreenState();
@@ -40,10 +38,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Предпросмотр'),
+        title: const Text('Предпросмотр'),
         actions: <Widget>[
           IconButton(
-            icon: Icon(
+            icon: const Icon(
               Icons.delete_forever,
               color: Colors.white,
             ),
@@ -74,7 +72,7 @@ child: Container(
     ),
   ),
   child: Container(
-    padding: EdgeInsets.all(20),
+    padding: const EdgeInsets.all(20),
     alignment: Alignment.bottomCenter,
     child:  Text("${index+1}/${widget.images.length}",style: TextStyle(fontSize: 40,color: Colors.white,shadows: [
     Shadow(
@@ -90,7 +88,7 @@ child: Container(
           );
         },
      //   scrollPhysics: BouncingScrollPhysics(),
-        backgroundDecoration: BoxDecoration(
+        backgroundDecoration: const BoxDecoration(
 
       //    borderRadius:BorderRadius.all(Radius.circular(20)),
           color: Colors.black,
@@ -98,7 +96,7 @@ child: Container(
         scrollDirection:Axis.vertical,
         enableRotation:false,
         loadingBuilder: (context, event) => Center(
-          child: Container(
+          child: SizedBox(
             width: 60.0,
             height: 60.0,
             child: CircularProgressIndicator(

@@ -2,16 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:gnsklad/main.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'gallery_screen.dart';
@@ -20,10 +17,10 @@ class CameraScreen19 extends StatefulWidget {
 
   postav name;
 
-  CameraScreen19({
+  CameraScreen19({Key? key, 
     required this.name,
 
-  });
+  }) : super(key: key);
 
   @override
   _CameraScreen19State createState() => _CameraScreen19State();
@@ -78,7 +75,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
 
   bool animphoto = false;
 
-  double _kPickerSheetHeight = 350.0;
+  final double _kPickerSheetHeight = 350.0;
 
   Widget _buildBottomPicker(Widget picker) {
     return Container(
@@ -113,18 +110,18 @@ class _CameraScreen19State extends State<CameraScreen19> {
         animphoto = true;
       });
 
-      final ImagePicker _picker = ImagePicker();
+      final ImagePicker picker = ImagePicker();
 
 
         final XFile? photo =
-            await _picker.pickImage(source: ImageSource.camera);
+            await picker.pickImage(source: ImageSource.camera);
         // Pick a video
         print(photo!.path.toString());
         setState(() {
           capturedImages.add(File(photo.path));
         });
 
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
 
       print("sfotal2");
 
@@ -186,11 +183,11 @@ class _CameraScreen19State extends State<CameraScreen19> {
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.done) {
                 // If the Future is complete, display the preview.
-                return Container(
+                return SizedBox(
                     width: MediaQuery.of(context).size.width,
                     child: FittedBox(
                       fit: BoxFit.fitWidth,
-                      child: Container(
+                      child: SizedBox(
                      height: double.infinity,
                         width:double.infinity,
                         child:  AnimatedContainer(
@@ -204,7 +201,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
                             curve: Curves.fastOutSlowIn,
 
                             child: animphoto
-                                ? Center(
+                                ? const Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -232,7 +229,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
 
                     child:AnimatedContainer(height: double.infinity,width: double.infinity, color:  animphoto ? Colors.white70 : Colors.transparent,    duration: const Duration(seconds: 1),
                       curve: Curves.fastOutSlowIn,child: animphoto
-                            ? Center(
+                            ? const Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -245,7 +242,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
                             ],
                           ),
                         )
-                            : Center(child:Text("Для фото нажми кружочек",style: TextStyle(color: Colors.white,fontSize: 18),)) ) );
+                            : const Center(child:Text("Для фото нажми кружочек",style: TextStyle(color: Colors.white,fontSize: 18),)) ) );
               }
             }, future: null,
           )),
@@ -261,7 +258,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
                 IconButton(
                   onPressed: () async {
                     if (capturedImages.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text("Ничего не сфотографировано"),
                       ));
 
@@ -288,6 +285,8 @@ class _CameraScreen19State extends State<CameraScreen19> {
                                 },
                               )),
                               Row(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.all(20.0),
@@ -317,9 +316,8 @@ class _CameraScreen19State extends State<CameraScreen19> {
                                             })); // Page
                                           }
                                           var pathsave =
-                                              (await getTemporaryDirectory())
-                                                      .path +
-                                                  "/example.pdf";
+                                              "${(await getTemporaryDirectory())
+                                                      .path}/example.pdf";
                                           final file = File(pathsave);
                                           await file
                                               .writeAsBytes(await pdf.save());
@@ -328,7 +326,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
                                               "https://teplogico.ru/gn0/${widget.name.id}/${dateTime.millisecondsSinceEpoch / 1000}");
 
                                           http.MultipartRequest request =
-                                              new http.MultipartRequest(
+                                              http.MultipartRequest(
                                                   "POST", postUri);
 
                                           http.MultipartFile multipartFile =
@@ -352,7 +350,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
 
 
                                           await Future.delayed(
-                                              Duration(milliseconds: 100));
+                                              const Duration(milliseconds: 100));
 
                                           setState(() {
                                             animphoto = false;
@@ -368,8 +366,8 @@ class _CameraScreen19State extends State<CameraScreen19> {
                                           ),
                                           //   elevation: 15.0,
                                         ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(15.0),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(15.0),
                                           child: Text(
                                             'ОТПРАВИТЬ',
                                             style: TextStyle(fontSize: 15),
@@ -379,8 +377,6 @@ class _CameraScreen19State extends State<CameraScreen19> {
                                     ),
                                   ),
                                 ],
-                                mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment: MainAxisAlignment.end,
                               )
                             ],
                           ),
@@ -390,12 +386,12 @@ class _CameraScreen19State extends State<CameraScreen19> {
 
 
                   },
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.check_circle_sharp,
                     color: Colors.green,
                     size: 50,
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 ),
                 GestureDetector(
                   onTap: () async {
@@ -404,7 +400,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
                   child: Container(
                     height: 60,
                     width: 60,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white,
                     ),
