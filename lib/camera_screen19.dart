@@ -37,14 +37,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
     fistasdib();
   }
 
-  void initScanner() {
-    FlutterDataWedge.initScanner(
-      profileName: 'gnprof',
-      onScan: (result) async {
-        await delaydoto();
-      },
-    );
-  }
+
 
   fistasdib() async {
 
@@ -254,7 +247,7 @@ class _CameraScreen19State extends State<CameraScreen19> {
                         )
                             : Center(child:Text("Для фото нажми кружочек",style: TextStyle(color: Colors.white,fontSize: 18),)) ) );
               }
-            },
+            }, future: null,
           )),
 
           //  ),

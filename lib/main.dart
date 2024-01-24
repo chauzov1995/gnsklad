@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_datawedge/models/scan_result.dart';
+import 'package:flutter_datawedge/models/scanner_status.dart';
 import 'package:gnsklad/camera_screen19.dart';
 import 'package:gnsklad/gallery_screen.dart';
 import 'package:gnsklad/gallery_screen_s.dart';
@@ -120,31 +122,38 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     HttpOverrides.global = MyHttpOverrides();
-    initScanner();
+    initScanner2();
 
 firstload();
 
 
   }
 
-  void initScanner() {
-    FlutterDataWedge.initScanner(
-        profileName: 'gnprof',
-        onScan: (result){
-          setState(() {
-            _lastCode = result.data;
-            print(_lastCode);
-            editingController.text=_lastCode;
-            filterSearchResults(_lastCode);
-          });
-        },
-        onStatusUpdate: (result){
-          ScannerStatusType status = result.status;
-          setState(() {
-            _scannerStatus = status.toString().split('.')[1];
-          });
-        }
-    );
+
+
+
+  void initScanner2() {
+
+    FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
+    StreamSubscription onScanSubscription = dw.onScanResult.listen((ScanResult result) {
+      setState(() {
+        _lastCode = result.data;
+        print(_lastCode);
+        editingController.text=_lastCode;
+        filterSearchResults(_lastCode);
+      });
+    });
+
+    StreamSubscription onScanSubscription2 = dw.onScannerStatus.listen((ScannerStatus result) {
+      ScannerStatusType status = result.status;
+      setState(() {
+        _scannerStatus = status.toString().split('.')[1];
+      });
+    });
+
+
+
+
 
   }
 
@@ -175,7 +184,7 @@ firstload();
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
     print(androidInfo.version.sdkInt);
-    sdkver=androidInfo.version.sdkInt!;
+    sdkver=androidInfo.version.sdkInt;
   http://teplogico.ru/gn-spispost
   var  response = await  http.get(Uri.parse('http://teplogico.ru/gn-spispost'));
 

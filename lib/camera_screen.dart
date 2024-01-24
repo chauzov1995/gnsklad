@@ -38,14 +38,7 @@ class _CameraScreenState extends State<CameraScreen> {
     fistasdib();
   }
 
-  void initScanner() {
-    FlutterDataWedge.initScanner(
-      profileName: 'gnprof',
-      onScan: (result) async {
-        await delaydoto();
-      },
-    );
-  }
+
 
   fistasdib() async {
 
