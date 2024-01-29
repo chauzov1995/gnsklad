@@ -24,6 +24,16 @@ class tehhclass {
 
 
           }});
+
+
+    List<Map> list =
+    await database.rawQuery('SELECT * FROM Users');
+    print(list.length);
+    if(list.length>0) {
+      user_nik = list[0]['NIK'];
+      user_pass = list[0]['USERPASSWORD'];
+    }
+
     return database;
   }
 

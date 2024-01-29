@@ -136,7 +136,7 @@ class _postavshikirState extends State<postavshikir> {
 
     duplicateItems.addAll(prrreeee);
 
-    setState(() {});
+    //setState(() {});
 
     print(duplicateItems[0].name);
 

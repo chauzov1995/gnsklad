@@ -26,7 +26,6 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
 
   late Animation<Color?> animation;
   late AnimationController _controller;
-  final TextEditingController _controllert = TextEditingController();
 
   @override
   void initState() {
@@ -54,27 +53,41 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
 
   int _scannerStatus = 0;
   String _lastCode = '';
+  int statuss = 0;
 
   void initScanner2() {
     FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
 
     StreamSubscription onScanSubscription =
-        dw.onScanResult.listen((ScanResult result) {
+    dw.onScanResult.listen((ScanResult result) {
       setState(() {
         _lastCode = result.data;
         print("initScanner3");
         print(_lastCode);
         // editingController.text = _lastCode;
+        if (statuss == 1) {
+          statuss = 2;
+        }
         findtara(int.parse(_lastCode));
       });
     });
 
     StreamSubscription onScanSubscription2 =
-        dw.onScannerStatus.listen((ScannerStatus result) {
+    dw.onScannerStatus.listen((ScannerStatus result) {
       ScannerStatusType status = result.status;
       setState(() {
         print(status.index);
         _scannerStatus = status.index;
+
+        if (_scannerStatus == 1) {
+          statuss = 1;
+        } else if (_scannerStatus == 0 && statuss == 1) {
+          if (countasdasd == '') {
+            statuss = 0;
+          } else {
+            statuss = 3;
+          }
+        }
       });
     });
   }
@@ -89,8 +102,9 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
         nakleyka = '';
       });
       res_DetalKode = sh_curr - 1500000000;
-      var response = await http.get(
-          Uri.parse('http://172.16.4.104:3000/getyarlik?id=$res_DetalKode'));
+      var response = await http.get(Uri.parse(
+          'http://172.16.4.104:3000/getyarlik?id=$res_DetalKode&nik=${tehhclass
+              .user_nik}&pass=${tehhclass.user_pass}'));
 
       //   List<postav> prrreeee = (json.decode(response.body) as List)
       //      .map((data) => postav.fromJson(data))
@@ -102,7 +116,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
       } else {
         countasdasd = "${otvet['taraName']}";
       }
-
+      statuss = 3;
       setState(() {});
     } else if ((sh_curr > 12000000) && (sh_curr < 99000000)) {
       if (countasdasd == '') return;
@@ -113,12 +127,14 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
 
       int idmagazupak = sh_curr - 12000000;
       var response = await http.get(Uri.parse(
-          'http://172.16.4.104:3000/setmtara?id=${idmagazupak}&mtaraid=${res_DetalKode}'));
+          'http://172.16.4.104:3000/setmtara?id=${idmagazupak}&mtaraid=${res_DetalKode}&nik=${tehhclass
+              .user_nik}&pass=${tehhclass.user_pass}'));
       var otvet = json.decode(response.body);
       zakazid = otvet[0]['MAGAZINE_ID'].toString();
       nakleyka = otvet[0]['CONCATENATION'].toString();
       _controller.reset();
       _controller.forward();
+      statuss = 3;
       setState(() {});
       print(otvet);
     }
@@ -127,7 +143,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _controller.dispose();
-    _controllert.dispose();
+
     super.dispose();
   }
 
@@ -136,94 +152,50 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Center(
-        child: tehhclass.user_nik == ''
-            ? AlertDialog(
-                title: const Text('Ваш логин'),
-                content: SingleChildScrollView(
-                  child: ListBody(
-                    children: <Widget>[
-                      TextField(
-                          controller: _controllert,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(),
-                          )),
-                    ],
+        child: statuss == 0
+            ? Text("Отсканируй штрихкод тары")
+            : statuss != 3
+            ? Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            Text("Сканирую...")
+          ],
+        )
+            : AnimatedContainer(
+            color: zakazid == '' ? Colors.transparent : animation.value,
+            width: double.infinity,
+            duration: Duration(milliseconds: 4),
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    countasdasd,
+                    style: TextStyle(fontSize: 68),
                   ),
-                ),
-                actions: <Widget>[
-                  TextButton(
-                    child: const Text('ВХОД'),
-                    onPressed: () async {
-                      var response = await http.get(Uri.parse(
-                          'http://172.16.4.104:3000/getuser?nik=${_controllert.text}'));
-
-                      print('23223');
-                      var otvet = json.decode(response.body)[0];
-                      print(otvet);
-                      if (otvet.containsKey('err')) {
-                        //countasdasd = otvet['err'];
-                      } else {
-                        tehhclass.database.rawInsert(
-                            'insert into Users(ID, NIK, USERGROUP, FIO, MUSERGROUPID, USERPASSWORD) VALUES (${otvet['ID']}, "${otvet['NIK']}", ${otvet['USERGROUP']}, "${otvet['FIO']}", ${otvet['MUSERGROUPID']}, "${otvet['USERPASSWORD']}" ) ');
-
-                        tehhclass.user_nik=otvet['NIK'];
-                            tehhclass.user_pass=otvet['USERPASSWORD'];
-                            setState(() {
-
-                            });
-                        //countasdasd = "${otvet['taraName']}";
-                      }
-                      // tehhclass.
-                    },
-                  ),
-                ],
-              )
-            : _scannerStatus == 1
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
+                  countasdasd == '' || zakazid == ""
+                      ? Container()
+                      : Column(
                     children: [
-                      CircularProgressIndicator(),
-                      Text("Сканирую...")
+                      SizedBox(
+                        height: 10,
+                      ),
+                      Text(
+                        "Заказ",
+                        style: TextStyle(fontSize: 24),
+                      ),
+                      Text(
+                        "${zakazid}",
+                        style: TextStyle(fontSize: 36),
+                      ),
+                      Text(
+                        "${nakleyka}",
+                        style: TextStyle(
+                            fontSize: 106,
+                            fontWeight: FontWeight.w600),
+                      ),
                     ],
                   )
-                : countasdasd == ''
-                    ? Text("Отсканируй штрихкод тары")
-                    : AnimatedContainer(
-                        color: zakazid == ''
-                            ? Colors.transparent
-                            : animation.value,
-                        width: double.infinity,
-                        duration: Duration(milliseconds: 4),
-                        child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                countasdasd,
-                                style: TextStyle(fontSize: 68),
-                              ),
-                              countasdasd == '' || zakazid == ""
-                                  ? Container()
-                                  : Column(
-                                      children: [
-                                        SizedBox(
-                                          height: 10,
-                                        ),
-                                        Text(
-                                          "Заказ",
-                                          style: TextStyle(fontSize: 24),
-                                        ),
-                                        Text(
-                                          "${zakazid}",
-                                          style: TextStyle(fontSize: 36),
-                                        ),
-                                        Text(
-                                          "${nakleyka}",
-                                          style: TextStyle(
-                                              fontSize: 106,
-                                              fontWeight: FontWeight.w600),
-                                        ),
-                                      ],
-                                    )
-                            ])));
+                ])));
   }
 }

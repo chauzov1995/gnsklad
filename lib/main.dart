@@ -3,13 +3,12 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:gnsklad/postavshikir.dart';
+import 'package:gnsklad/profile.dart';
 import 'package:gnsklad/tars.dart';
 import 'package:gnsklad/tehhclass.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 
-
 int sdkver = 21;
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,9 +60,6 @@ class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key, required this.title, required this.cameras})
       : super(key: key);
 
-
-
-
   final String title;
 
   @override
@@ -71,47 +67,30 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
-
   @override
   void initState() {
     // TODO: implement initState
 
-firstinit();
+    firstinit();
     super.initState();
   }
 
   Future<void> firstinit() async {
-   //await tehhclass.initbd();
-
-
+    //await tehhclass.initbd();
   }
 
   int _selectedIndex = 0;
 
   Widget getwidget() {
+
+
     switch (_selectedIndex) {
       case 0:
         return postavshikir(widget.cameras);
       case 1:
         return tars();
       case 2:
-        return Container(
-          child: Column(children: [
-            ListTile(title: Text(tehhclass.user_nik),),
-            TextButton(onPressed: (){
-              tehhclass.database.rawDelete(
-                  'DELETE FROM Users');
-               tehhclass.user_nik='';
-              tehhclass.user_pass='';
-              setState(() {
-
-              });
-
-
-            }, child: Text("Выход"))
-          ],),
-        );
+        return profile();
 
       default:
         return Container();
@@ -119,6 +98,10 @@ firstinit();
   }
 
   void _onItemTapped(int index) {
+    if (tehhclass.user_nik == '' && index==1) {
+      index = 2;
+    }
+
     setState(() {
       _selectedIndex = index;
     });
@@ -126,11 +109,13 @@ firstinit();
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
-
-        title: Text(_selectedIndex==0?"Поставщики":_selectedIndex==1?"Тары":"Пользователь"),
+        title: Text(_selectedIndex == 0
+            ? "Поставщики"
+            : _selectedIndex == 1
+                ? "Тары"
+                : "Пользователь"),
       ),
       body: getwidget(),
       bottomNavigationBar: BottomNavigationBar(
