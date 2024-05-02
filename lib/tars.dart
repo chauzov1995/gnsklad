@@ -35,10 +35,24 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
     super.initState();
   }
 
-  firstinit() {
+  late List spis;
+ Map spiss={};
+  firstinit() async {
+
+    var response = await http.get(Uri.parse(
+        'http://172.16.4.104:3000/getalltars?nik=${tehhclass.user_nik}&pass=${tehhclass.user_pass}'));
+
+
+     spis = json.decode(response.body);
+
+     for(var asdas in spis){
+       spiss.addAll({asdas['ID']: asdas['NAME']});
+    }
+
+
     _controller = AnimationController(
       vsync: this, // the SingleTickerProviderStateMixin
-      duration: Duration(seconds: 4),
+      duration: Duration(seconds: 6),
     );
 
     animation = ColorTween(begin: Colors.greenAccent, end: Colors.white)
@@ -93,7 +107,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   }
 
   void findtara(int sh_curr) async {
-    // int sh_curr = 1500000101;
+    // int sh_curr = 1530000101;
     // int sh_curr = 12519856;
     if ((sh_curr > 1500000000) && (sh_curr < 1600000000)) {
       setState(() {
@@ -102,24 +116,15 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
         nakleyka = '';
       });
       res_DetalKode = sh_curr - 1500000000;
-      var response = await http.get(Uri.parse(
-          'http://172.16.4.104:3000/getyarlik?id=$res_DetalKode&nik=${tehhclass
-              .user_nik}&pass=${tehhclass.user_pass}'));
-
-      //   List<postav> prrreeee = (json.decode(response.body) as List)
-      //      .map((data) => postav.fromJson(data))
-      //   .toList();
-
-      var otvet = json.decode(response.body);
-      if (otvet.containsKey('err')) {
-        countasdasd = otvet['err'];
-      } else {
-        countasdasd = "${otvet['taraName']}";
-      }
+if(spiss[res_DetalKode]==null){
+  countasdasd="нет тары";
+}else {
+  countasdasd = "${spiss[res_DetalKode]}";
+}
       statuss = 3;
       setState(() {});
     } else if ((sh_curr > 12000000) && (sh_curr < 99000000)) {
-      if (countasdasd == '') return;
+      if (countasdasd == '' || countasdasd=="нет тары") return;
       setState(() {
         zakazid = '';
         nakleyka = '';
