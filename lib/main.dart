@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:gnsklad/fotosklad.dart';
 import 'package:gnsklad/postavshikir.dart';
 import 'package:gnsklad/profile.dart';
 import 'package:gnsklad/tars.dart';
@@ -82,14 +83,15 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
   Widget getwidget() {
-
-
     switch (_selectedIndex) {
       case 0:
         return postavshikir(widget.cameras);
       case 1:
-        return tars();
+        return fotosklad(widget.cameras);
       case 2:
+        return tars();
+
+      case 3:
         return profile();
 
       default:
@@ -98,8 +100,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onItemTapped(int index) {
-    if (tehhclass.user_nik == '' && index==1) {
-      index = 2;
+    if (tehhclass.user_nik == '' && index == 2) {
+      index = 3;
     }
 
     setState(() {
@@ -114,15 +116,20 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(_selectedIndex == 0
             ? "Поставщики"
             : _selectedIndex == 1
-                ? "Тары"
+                ? "Ящик с фурнитурой" : _selectedIndex == 2?"Тары"
                 : "Пользователь"),
       ),
       body: getwidget(),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.business_center),
             label: 'Поставщики',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.camera_alt),
+            label: 'Фурнитура',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_basket_outlined),
