@@ -128,7 +128,7 @@ class _MyHomePageState extends State<MyHomePage> {
             label: 'Поставщики',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.camera_alt),
+            icon: Icon(Icons.hardware),
             label: 'Фурнитура',
           ),
           BottomNavigationBarItem(
