@@ -132,9 +132,10 @@ class _fotoskladState extends State<fotosklad> {
                       suffixIcon: IconButton(
                         icon:
                             const Icon(Icons.clear_sharp, color: Colors.black),
-                        onPressed: () {
+                        onPressed: () async {
                           editingController.clear();
                           selectedzakaz = null;
+                          await selectzakaz();
 
                           // filterSearchResults("");
                         },
