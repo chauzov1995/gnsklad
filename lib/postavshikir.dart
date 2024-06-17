@@ -77,27 +77,24 @@ class _postavshikirState extends State<postavshikir> {
   }
 
   void initScanner2() {
-    FlutterDataWedge  dw = FlutterDataWedge(profileName: "gnprof");
+  //  FlutterDataWedge  dw = FlutterDataWedge(profileName: "gnprof");
 
     StreamSubscription onScanSubscription =
-        dw.onScanResult.listen((ScanResult result) {
+      tehhclass. dw.onScanResult.listen((ScanResult result) {
+        if(tehhclass.selectedIndex==0){
       setState(() {
         _lastCode = result.data;
-        print("initScanner2");
+        print("initScanner1");
         print(_lastCode);
-        editingController.text = _lastCode;
+        editingController.text = tehhclass.myFocusNode1.hasFocus?"": _lastCode;
         filterSearchResults(_lastCode);
+
       });
+        }
     });
 
 
-    StreamSubscription onScanSubscription2 =
-        dw.onScannerStatus.listen((ScannerStatus result) {
-      ScannerStatusType status = result.status;
-      setState(() {
-        _scannerStatus = status.toString().split('.')[1];
-      });
-    });
+
   }
 
   @override
@@ -141,6 +138,9 @@ class _postavshikirState extends State<postavshikir> {
     print(duplicateItems[0].name);
 
     items.addAll(duplicateItems);
+    setState(() {
+
+    });
   }
 
 
@@ -158,6 +158,7 @@ class _postavshikirState extends State<postavshikir> {
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: TextField(
+            focusNode:tehhclass.myFocusNode1,
             onChanged: (value) {
               filterSearchResults(value);
             },
@@ -170,6 +171,7 @@ class _postavshikirState extends State<postavshikir> {
                   icon: const Icon(Icons.clear_sharp, color: Colors.black),
                   onPressed: () {
                     editingController.clear();
+                    tehhclass.myFocusNode1.requestFocus();
                     filterSearchResults("");
                   },
                 ),

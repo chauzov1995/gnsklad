@@ -43,6 +43,7 @@ class _fotoskladState extends State<fotosklad> {
   String _lastCode = '';
   final bool _isEnabled = true;
 
+
   String? selectedzakaz;
 
   @override
@@ -66,32 +67,30 @@ class _fotoskladState extends State<fotosklad> {
   }
 
   void initScanner2() {
-    FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
+
 
     StreamSubscription onScanSubscription =
-        dw.onScanResult.listen((ScanResult result) {
-      setState(() async {
-        _lastCode = result.data;
-        print("initScanner2");
-        print(_lastCode);
-        editingController.text = _lastCode;
-        selectedzakaz = _lastCode;
-        await selectzakaz();
-        //filterSearchResults(_lastCode);
-      });
+      tehhclass.dw.onScanResult.listen((ScanResult result) {
+        if(tehhclass.selectedIndex==1) {
+          setState(() async {
+            _lastCode = result.data;
+            print("initScanner2");
+            print(_lastCode);
+            editingController.text = tehhclass.myFocusNode2.hasFocus?"":_lastCode;
+            selectedzakaz = _lastCode;
+            await selectzakaz();
+            //filterSearchResults(_lastCode);
+          });
+        }
     });
 
-    StreamSubscription onScanSubscription2 =
-        dw.onScannerStatus.listen((ScannerStatus result) {
-      ScannerStatusType status = result.status;
-      setState(() {
-        _scannerStatus = status.toString().split('.')[1];
-      });
-    });
+
   }
 
   @override
   void dispose() {
+
+    editingController.dispose();
     super.dispose();
   }
 
@@ -114,6 +113,7 @@ class _fotoskladState extends State<fotosklad> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
+                  focusNode:tehhclass.myFocusNode2,
                   keyboardType: TextInputType.number,
                   inputFormatters: <TextInputFormatter>[
                     FilteringTextInputFormatter.digitsOnly
@@ -134,6 +134,7 @@ class _fotoskladState extends State<fotosklad> {
                             const Icon(Icons.clear_sharp, color: Colors.black),
                         onPressed: () async {
                           editingController.clear();
+                          tehhclass.myFocusNode2.requestFocus();
                           selectedzakaz = null;
                           await selectzakaz();
 
@@ -170,8 +171,8 @@ class _fotoskladState extends State<fotosklad> {
                           ),
                         ),
                         imageUrl: photospisurl[index]['path'],
-                        placeholder: (context, url) =>
-                            CircularProgressIndicator(),
+                        placeholder: (context, url) =>Center(child:
+                            CircularProgressIndicator(),),
                         errorWidget: (context, url, error) => Icon(Icons.error),
                       ),
                       onTap: () {

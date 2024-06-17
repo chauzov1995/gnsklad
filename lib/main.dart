@@ -80,46 +80,46 @@ class _MyHomePageState extends State<MyHomePage> {
     //await tehhclass.initbd();
   }
 
-  int _selectedIndex = 0;
 
-  Widget getwidget() {
-    switch (_selectedIndex) {
-      case 0:
-        return postavshikir(widget.cameras);
-      case 1:
-        return fotosklad(widget.cameras);
-      case 2:
-        return tars();
 
-      case 3:
-        return profile();
 
-      default:
-        return Container();
-    }
-  }
 
   void _onItemTapped(int index) {
     if (tehhclass.user_nik == '' && index == 2) {
       index = 3;
     }
 
+
     setState(() {
-      _selectedIndex = index;
+
+     tehhclass.selectedIndex = index;
     });
+    tehhclass.myFocusNode1.unfocus();
+    tehhclass.myFocusNode2.unfocus();
+
+
+
+
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedIndex == 0
+        title: Text(tehhclass.selectedIndex == 0
             ? "Поставщики"
-            : _selectedIndex == 1
-                ? "Ящик с фурнитурой" : _selectedIndex == 2?"Тары"
-                : "Пользователь"),
+            : tehhclass.selectedIndex == 1
+                ? "Ящик с фурнитурой"
+                : tehhclass.selectedIndex == 2
+                    ? "Тары"
+                    : "Пользователь"),
       ),
-      body: getwidget(),
+      body: IndexedStack(children: <Widget>[
+        postavshikir(widget.cameras),
+        fotosklad(widget.cameras),
+        tars(),
+        profile()
+      ], index: tehhclass.selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
@@ -140,7 +140,7 @@ class _MyHomePageState extends State<MyHomePage> {
             label: 'Пользователь',
           )
         ],
-        currentIndex: _selectedIndex,
+        currentIndex: tehhclass.selectedIndex,
         selectedItemColor: Colors.amber[800],
         onTap: _onItemTapped,
       ),

@@ -70,10 +70,10 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   int statuss = 0;
 
   void initScanner2() {
-    FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
 
     StreamSubscription onScanSubscription =
-    dw.onScanResult.listen((ScanResult result) {
+  tehhclass.  dw.onScanResult.listen((ScanResult result) {
+    if(tehhclass.selectedIndex==3) {
       setState(() {
         _lastCode = result.data;
         print("initScanner3");
@@ -84,10 +84,12 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
         }
         findtara(int.parse(_lastCode));
       });
+    }
     });
 
     StreamSubscription onScanSubscription2 =
-    dw.onScannerStatus.listen((ScannerStatus result) {
+    tehhclass.dw.onScannerStatus.listen((ScannerStatus result) {
+      if(tehhclass.selectedIndex==2){
       ScannerStatusType status = result.status;
       setState(() {
         print(status.index);
@@ -103,7 +105,9 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
           }
         }
       });
+    }
     });
+
   }
 
   void findtara(int sh_curr) async {

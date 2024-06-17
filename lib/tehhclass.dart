@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/sqlite_api.dart';
 
@@ -5,6 +7,12 @@ class tehhclass {
   static String user_nik='';
   static String user_pass='';
   static late Database database;
+  static int selectedIndex = 0;
+  static FocusNode myFocusNode1 = FocusNode();
+  static FocusNode myFocusNode2 = FocusNode();
+
+
+  static FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
 
  static Future<Database> initbd() async {
 
