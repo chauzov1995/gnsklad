@@ -73,7 +73,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
 
     StreamSubscription onScanSubscription =
   tehhclass.  dw.onScanResult.listen((ScanResult result) {
-    if(tehhclass.selectedIndex==3) {
+    if(tehhclass.selectedIndex==2) {
       setState(() {
         _lastCode = result.data;
         print("initScanner3");
