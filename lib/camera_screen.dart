@@ -180,9 +180,61 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+
+  Future<bool?> _showBackDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Уйти?'),
+          content: const Text(
+            'Имеются несохранённые данные',
+          ),
+          actions: <Widget>[
+            TextButton(
+              style: TextButton.styleFrom(
+                textStyle: Theme.of(context).textTheme.labelLarge,
+              ),
+              child: const Text('Остаться'),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                textStyle: Theme.of(context).textTheme.labelLarge,
+              ),
+              child: const Text('Закрыть'),
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return  PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) async {
+
+          if (didPop) {
+            return;
+          }
+          bool  shouldPop=true;
+          if (!capturedImages.isEmpty) {
+             shouldPop = await _showBackDialog() ?? false;
+          }
+          if (context.mounted && shouldPop) {
+            Navigator.pop(context);
+          }
+        },
+
+    child:Scaffold(
+
       backgroundColor: Colors.black,
       body: Column(
         children: [
@@ -432,6 +484,6 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
