@@ -78,7 +78,7 @@ class _fotoskladState extends State<fotosklad> {
           _lastCode = object!.data!['scandata'];
           print("initScanner2");
           print(_lastCode);
-          editingController.text = tehhclass.myFocusNode2.hasFocus?"":_lastCode;
+          editingController.text = _lastCode;//tehhclass.myFocusNode2.hasFocus?"":_lastCode;
           selectedzakaz = _lastCode;
           await selectzakaz();
           //filterSearchResults(_lastCode);

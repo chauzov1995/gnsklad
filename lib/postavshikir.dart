@@ -87,7 +87,7 @@ class _postavshikirState extends State<postavshikir> {
           print("initScanner1");
           print(_lastCode);
           editingController.text =
-              tehhclass.myFocusNode1.hasFocus ? "" : _lastCode;
+      _lastCode;// tehhclass.myFocusNode1.hasFocus ? "" : _lastCode;
           filterSearchResults(_lastCode);
         });
       }

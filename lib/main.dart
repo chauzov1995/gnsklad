@@ -102,7 +102,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
+  @override
+  void dispose() {
 
+     tehhclass.receiver.stop();
+    super.dispose();
+  }
 
 
   void _onItemTapped(int index) {
