@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
+
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:gnsklad/fotosklad.dart';
 import 'package:gnsklad/postavshikir.dart';
 import 'package:gnsklad/profile.dart';
@@ -68,15 +71,33 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
+
   @override
   void initState() {
     // TODO: implement initState
 
     firstinit();
     super.initState();
+
+//com.android.scanner.broadcast
+
+
+
+
+
+
+   // tehhclass.receiver.isListening
+
+
   }
 
+
   Future<void> firstinit() async {
+
+    await tehhclass.receiver.start();
+
+   // await  tehhclass.receiver.stop();
     //await tehhclass.initbd();
   }
 

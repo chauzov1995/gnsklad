@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:flutter_datawedge/models/scan_result.dart';
 import 'package:flutter_datawedge/models/scanner_status.dart';
@@ -77,28 +78,41 @@ class _postavshikirState extends State<postavshikir> {
   }
 
   void initScanner2() {
-  //  FlutterDataWedge  dw = FlutterDataWedge(profileName: "gnprof");
 
-    StreamSubscription onScanSubscription =
-      tehhclass. dw.onScanResult.listen((ScanResult result) {
-        if(tehhclass.selectedIndex==0){
-      setState(() {
-        _lastCode = result.data;
-        print("initScanner1");
-        print(_lastCode);
-        editingController.text = tehhclass.myFocusNode1.hasFocus?"": _lastCode;
-        filterSearchResults(_lastCode);
-
-      });
-        }
+    //для новых сканеров
+    tehhclass.receiver.messages.listen((BroadcastMessage? object) {
+      if (tehhclass.selectedIndex == 0) {
+        setState(() {
+          _lastCode = object!.data!['scandata'];
+          print("initScanner1");
+          print(_lastCode);
+          editingController.text =
+              tehhclass.myFocusNode1.hasFocus ? "" : _lastCode;
+          filterSearchResults(_lastCode);
+        });
+      }
     });
 
 
-
+    //для зебры
+    StreamSubscription onScanSubscription =
+        tehhclass.dw.onScanResult.listen((ScanResult result) {
+      if (tehhclass.selectedIndex == 0) {
+        setState(() {
+          _lastCode = result.data;
+          print("initScanner1");
+          print(_lastCode);
+          editingController.text =
+              tehhclass.myFocusNode1.hasFocus ? "" : _lastCode;
+          filterSearchResults(_lastCode);
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+
 
     super.dispose();
   }
@@ -106,9 +120,8 @@ class _postavshikirState extends State<postavshikir> {
   firstload() async {
 // open the database
 
-
-    List<Map> list =
-        await tehhclass.database.rawQuery('SELECT * FROM Test order by sort desc');
+    List<Map> list = await tehhclass.database
+        .rawQuery('SELECT * FROM Test order by sort desc');
     //   print("records");
     print(list);
 
@@ -138,12 +151,8 @@ class _postavshikirState extends State<postavshikir> {
     print(duplicateItems[0].name);
 
     items.addAll(duplicateItems);
-    setState(() {
-
-    });
+    setState(() {});
   }
-
-
 
   late int selectedpost = -1;
 
@@ -158,7 +167,7 @@ class _postavshikirState extends State<postavshikir> {
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: TextField(
-            focusNode:tehhclass.myFocusNode1,
+            focusNode: tehhclass.myFocusNode1,
             onChanged: (value) {
               filterSearchResults(value);
             },

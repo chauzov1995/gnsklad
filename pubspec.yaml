@@ -46,6 +46,7 @@ dependencies:
   flutter_datawedge: ^1.2.0
   cupertino_icons: ^1.0.2
   cached_network_image: ^3.3.1
+  flutter_broadcasts: ^0.4.0
 
 
 dev_dependencies:

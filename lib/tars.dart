@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:flutter_datawedge/models/scan_result.dart';
 import 'package:flutter_datawedge/models/scanner_status.dart';
@@ -70,6 +71,28 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   int statuss = 0;
 
   void initScanner2() {
+
+    //для новых сканеров
+    tehhclass.receiver.messages.listen((BroadcastMessage? object) {
+
+      if(tehhclass.selectedIndex==2) {
+        setState(() {
+          _lastCode = object!.data!['scandata'];
+          print("initScanner3");
+          print(_lastCode);
+          // editingController.text = _lastCode;
+          if (statuss == 1) {
+            statuss = 2;
+          }
+          findtara(int.parse(_lastCode));
+        });
+      }
+
+
+    });
+
+
+    //для зебры
 
     StreamSubscription onScanSubscription =
   tehhclass.  dw.onScanResult.listen((ScanResult result) {
