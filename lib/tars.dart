@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:flutter_datawedge/models/scan_result.dart';
 import 'package:flutter_datawedge/models/scanner_status.dart';
@@ -71,7 +70,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   int statuss = 0;
 
   void initScanner2() {
-
+/*
     //для новых сканеров
     tehhclass.receiver.messages.listen((BroadcastMessage? object) {
 
@@ -90,7 +89,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
 
 
     });
-
+*/
 
     //для зебры
 

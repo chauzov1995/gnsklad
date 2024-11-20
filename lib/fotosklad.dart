@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_broadcasts/flutter_broadcasts.dart';
+
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:flutter_datawedge/models/scan_result.dart';
 import 'package:flutter_datawedge/models/scanner_status.dart';
@@ -71,7 +71,7 @@ class _fotoskladState extends State<fotosklad> {
 
 
     //для новых сканеров
-    tehhclass.receiver.messages.listen((BroadcastMessage? object) {
+ /*   tehhclass.receiver.messages.listen((BroadcastMessage? object) {
 
       if(tehhclass.selectedIndex==1) {
         setState(() async {
@@ -88,7 +88,7 @@ class _fotoskladState extends State<fotosklad> {
 
 
     });
-
+*/
     //для зебры
     StreamSubscription onScanSubscription =
       tehhclass.dw.onScanResult.listen((ScanResult result) {

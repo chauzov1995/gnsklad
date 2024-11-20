@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_broadcasts/flutter_broadcasts.dart';
+
 import 'package:gnsklad/fotosklad.dart';
 import 'package:gnsklad/postavshikir.dart';
 import 'package:gnsklad/profile.dart';
@@ -95,7 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> firstinit() async {
 
-    await tehhclass.receiver.start();
+   // await tehhclass.receiver.start();
 
    // await  tehhclass.receiver.stop();
     //await tehhclass.initbd();
@@ -105,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void dispose() {
 
-     tehhclass.receiver.stop();
+  //   tehhclass.receiver.stop();
     super.dispose();
   }
 

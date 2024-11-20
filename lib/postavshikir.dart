@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_broadcasts/flutter_broadcasts.dart';
+
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:flutter_datawedge/models/scan_result.dart';
 import 'package:flutter_datawedge/models/scanner_status.dart';
@@ -80,7 +80,7 @@ class _postavshikirState extends State<postavshikir> {
   void initScanner2() {
 
     //для новых сканеров
-    tehhclass.receiver.messages.listen((BroadcastMessage? object) {
+  /*  tehhclass.receiver.messages.listen((BroadcastMessage? object) {
       if (tehhclass.selectedIndex == 0) {
         setState(() {
           _lastCode = object!.data!['scandata'];
@@ -92,7 +92,7 @@ class _postavshikirState extends State<postavshikir> {
         });
       }
     });
-
+*/
 
     //для зебры
     StreamSubscription onScanSubscription =
