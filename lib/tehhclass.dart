@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/sqlite_api.dart';
@@ -13,9 +14,9 @@ class tehhclass {
 
 
   static FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
- /* static BroadcastReceiver receiver = BroadcastReceiver(
+  static BroadcastReceiver receiver = BroadcastReceiver(
     names: <String>["com.android.scanner.broadcast"],
-  );*/
+  );
 
  static Future<Database> initbd() async {
 

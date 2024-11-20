@@ -262,6 +262,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_broadcasts:
+    dependency: "direct main"
+    description:
+      path: "C:\\Users\\chauzov_n_g\\AndroidStudioProjects\\flutter_broadcasts"
+      relative: false
+    source: path
+    version: "0.4.0"
   flutter_cache_manager:
     dependency: transitive
     description:

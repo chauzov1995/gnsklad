@@ -46,7 +46,8 @@ dependencies:
   flutter_datawedge: ^2.1.0
   cupertino_icons: ^1.0.2
   cached_network_image: ^3.3.1
-
+  flutter_broadcasts:
+    path: C:\Users\chauzov_n_g\AndroidStudioProjects\flutter_broadcasts
 
 
 dev_dependencies:
