@@ -82,16 +82,26 @@ class _postavshikirState extends State<postavshikir> {
 
     //для новых сканеров
     tehhclass.receiver.messages.listen((BroadcastMessage? object) {
+
       if (tehhclass.selectedIndex == 0) {
+        if(object!=null){
         setState(() {
-          _lastCode = object!.data!['scandata'];
+        //  print("aasdasdas");
+//print(object);
+
+          if(object.data!.containsKey('value')){
+            _lastCode=object.data!['value'];
+          }
+          if(object.data!.containsKey('scandata')){
+            _lastCode=object.data!['scandata'];
+          }
           print("initScanner1");
           print(_lastCode);
           editingController.text =
       _lastCode;// tehhclass.myFocusNode1.hasFocus ? "" : _lastCode;
           filterSearchResults(_lastCode);
         });
-      }
+      }}
     });
 
 

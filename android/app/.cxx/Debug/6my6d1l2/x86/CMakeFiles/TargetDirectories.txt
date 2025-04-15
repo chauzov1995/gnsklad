@@ -1,0 +1,2 @@
+C:/mos/gnsklad/android/app/.cxx/Debug/6my6d1l2/x86/CMakeFiles/edit_cache.dir
+C:/mos/gnsklad/android/app/.cxx/Debug/6my6d1l2/x86/CMakeFiles/rebuild_cache.dir

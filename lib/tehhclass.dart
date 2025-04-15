@@ -15,7 +15,7 @@ class tehhclass {
 
   static FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
   static BroadcastReceiver receiver = BroadcastReceiver(
-    names: <String>["com.android.scanner.broadcast"],
+    names: <String>["com.android.scanner.broadcast", "android.intent.action.SCANRESULT"],
   );
 
  static Future<Database> initbd() async {
@@ -41,8 +41,10 @@ class tehhclass {
     List<Map> list =
     await database.rawQuery('SELECT * FROM Users');
     print(list.length);
+print("asdasdasdasdasdasdasdasd");
     if(list.length>0) {
       user_nik = list[0]['NIK'];
+      print(user_nik);
       user_pass = list[0]['USERPASSWORD'];
     }
 

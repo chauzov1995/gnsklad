@@ -76,18 +76,25 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
     tehhclass.receiver.messages.listen((BroadcastMessage? object) {
 
       if(tehhclass.selectedIndex==2) {
-        setState(() {
-          _lastCode = object!.data!['scandata'];
-          print("initScanner3");
-          print(_lastCode);
-          // editingController.text = _lastCode;
-          if (statuss == 1) {
-            statuss = 2;
-          }
-          findtara(int.parse(_lastCode));
-        });
+        print("asdasdasdasdsad");
+        if (object != null) {
+          setState(() {
+            if (object.data!.containsKey('value')) {
+              _lastCode = object.data!['value'];
+            }
+            if (object.data!.containsKey('scandata')) {
+              _lastCode = object.data!['scandata'];
+            }
+            print("initScanner3");
+            print(_lastCode);
+            // editingController.text = _lastCode;
+            if (statuss == 1) {
+              statuss = 2;
+            }
+            findtara(int.parse(_lastCode));
+          });
+        }
       }
-
 
     });
 

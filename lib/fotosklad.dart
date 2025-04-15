@@ -75,17 +75,25 @@ class _fotoskladState extends State<fotosklad> {
     tehhclass.receiver.messages.listen((BroadcastMessage? object) {
 
       if(tehhclass.selectedIndex==1) {
-        setState(() async {
-          _lastCode = object!.data!['scandata'];
-          print("initScanner2");
-          print(_lastCode);
-          editingController.text = _lastCode;//tehhclass.myFocusNode2.hasFocus?"":_lastCode;
-          selectedzakaz = _lastCode;
-          await selectzakaz();
-          //filterSearchResults(_lastCode);
-        });
-      }
+        if (object != null) {
+          setState(() async {
+            if (object.data!.containsKey('value')) {
+              _lastCode = object.data!['value'];
+            }
+            if (object.data!.containsKey('scandata')) {
+              _lastCode = object.data!['scandata'];
+            }
 
+            print("initScanner2");
+            print(_lastCode);
+            editingController.text =
+                _lastCode; //tehhclass.myFocusNode2.hasFocus?"":_lastCode;
+            selectedzakaz = _lastCode;
+            await selectzakaz();
+            //filterSearchResults(_lastCode);
+          });
+        }
+      }
 
 
     });
