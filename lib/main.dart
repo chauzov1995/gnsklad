@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
@@ -12,14 +11,18 @@ import 'package:gnsklad/tars.dart';
 import 'package:gnsklad/tehhclass.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 
+import 'brak.dart';
+
+
 int sdkver = 21;
+late List<CameraDescription> _cameras;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Obtain a list of the available cameras on the device.
-  final cameras = await availableCameras();
+  _cameras = await availableCameras();
   tehhclass.database = await tehhclass.initbd(); //инициализируем бд
-  runApp(MyApp(cameras: cameras));
+  runApp(MyApp());
 }
 
 class MyHttpOverrides extends HttpOverrides {
@@ -32,9 +35,9 @@ class MyHttpOverrides extends HttpOverrides {
 }
 
 class MyApp extends StatelessWidget {
-  final List<CameraDescription> cameras;
 
-  const MyApp({Key? key, required this.cameras}) : super(key: key);
+
+  const MyApp({Key? key}) : super(key: key);
 
   // This widget is the root of your application.
   @override
@@ -54,15 +57,15 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Склад: Поставщики', cameras: cameras),
+      home: MyHomePage(title: 'Склад: Поставщики'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  final List<CameraDescription> cameras;
 
-  const MyHomePage({Key? key, required this.title, required this.cameras})
+
+  const MyHomePage({Key? key, required this.title})
       : super(key: key);
 
   final String title;
@@ -72,8 +75,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
-
   @override
   void initState() {
     // TODO: implement initState
@@ -83,50 +84,32 @@ class _MyHomePageState extends State<MyHomePage> {
 
 //com.android.scanner.broadcast
 
-
-
-
-
-
-   // tehhclass.receiver.isListening
-
-
+    // tehhclass.receiver.isListening
   }
 
-
   Future<void> firstinit() async {
-
     await tehhclass.receiver.start();
 
-   // await  tehhclass.receiver.stop();
+    // await  tehhclass.receiver.stop();
     //await tehhclass.initbd();
   }
 
-
   @override
   void dispose() {
-
     tehhclass.receiver.stop();
     super.dispose();
   }
-
 
   void _onItemTapped(int index) {
     if (tehhclass.user_nik == '' && index == 2) {
       index = 3;
     }
 
-
     setState(() {
-
-     tehhclass.selectedIndex = index;
+      tehhclass.selectedIndex = index;
     });
     tehhclass.myFocusNode1.unfocus();
     tehhclass.myFocusNode2.unfocus();
-
-
-
-
   }
 
   @override
@@ -139,13 +122,16 @@ class _MyHomePageState extends State<MyHomePage> {
                 ? "Ящик с фурнитурой"
                 : tehhclass.selectedIndex == 2
                     ? "Тары"
-                    : "Пользователь"),
+                    : tehhclass.selectedIndex == 3
+                        ? "Брак"
+                        : "Пользователь"),
       ),
       body: IndexedStack(children: <Widget>[
-        postavshikir(widget.cameras),
-        fotosklad(widget.cameras),
+        postavshikir(_cameras),
+        fotosklad(_cameras),
         tars(),
-        profile()
+        brak(_cameras),
+        profile(),
       ], index: tehhclass.selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -161,6 +147,10 @@ class _MyHomePageState extends State<MyHomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_basket_outlined),
             label: 'Тары',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.error_outlined),
+            label: 'Брак',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

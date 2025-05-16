@@ -85,6 +85,9 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
             if (object.data!.containsKey('scandata')) {
               _lastCode = object.data!['scandata'];
             }
+            if(object.data!.containsKey('SCAN_BARCODE1')){
+              _lastCode=object.data!['SCAN_BARCODE1'];
+            }
             print("initScanner3");
             print(_lastCode);
             // editingController.text = _lastCode;

@@ -86,14 +86,17 @@ class _postavshikirState extends State<postavshikir> {
       if (tehhclass.selectedIndex == 0) {
         if(object!=null){
         setState(() {
-        //  print("aasdasdas");
-//print(object);
+          print("aasdasdas");
+print(object);
 
           if(object.data!.containsKey('value')){
             _lastCode=object.data!['value'];
           }
           if(object.data!.containsKey('scandata')){
             _lastCode=object.data!['scandata'];
+          }
+          if(object.data!.containsKey('SCAN_BARCODE1')){
+            _lastCode=object.data!['SCAN_BARCODE1'];
           }
           print("initScanner1");
           print(_lastCode);

@@ -1,0 +1,2 @@
+C:/mos/gnsklad/android/app/.cxx/RelWithDebInfo/1e6h6h4a/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/mos/gnsklad/android/app/.cxx/RelWithDebInfo/1e6h6h4a/armeabi-v7a/CMakeFiles/rebuild_cache.dir

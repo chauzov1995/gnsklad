@@ -14,8 +14,9 @@ class tehhclass {
 
 
   static FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
+
   static BroadcastReceiver receiver = BroadcastReceiver(
-    names: <String>["com.android.scanner.broadcast", "android.intent.action.SCANRESULT"],
+    names: <String>["com.android.scanner.broadcast", "android.intent.action.SCANRESULT", "nlscan.action.SCANNER_RESULT"],
   );
 
  static Future<Database> initbd() async {

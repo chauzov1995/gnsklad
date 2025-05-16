@@ -83,6 +83,9 @@ class _fotoskladState extends State<fotosklad> {
             if (object.data!.containsKey('scandata')) {
               _lastCode = object.data!['scandata'];
             }
+            if(object.data!.containsKey('SCAN_BARCODE1')){
+              _lastCode=object.data!['SCAN_BARCODE1'];
+            }
 
             print("initScanner2");
             print(_lastCode);
