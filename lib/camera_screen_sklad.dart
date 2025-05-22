@@ -15,13 +15,17 @@ import 'gallery_screen.dart';
 class camera_screen_sklad extends StatefulWidget {
   final List<CameraDescription> cameras;
   String name;
-  int politon=0;
+  int politon = 0;
+  bool brak = false;
+  String iddetal="";
 
   camera_screen_sklad({
     Key? key,
     required this.name,
     required this.cameras,
-  this.politon=0
+    this.politon = 0,
+    this.brak = false,
+    this.iddetal=""
   }) : super(key: key);
 
   @override
@@ -175,7 +179,6 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
     }
   }
 
-
   Future<bool?> _showBackDialog() {
     return showDialog<bool>(
       context: context,
@@ -210,199 +213,205 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
         canPop: false,
         onPopInvoked: (didPop) async {
-
-      if (didPop) {
-        return;
-      }
-      bool  shouldPop=true;
-      if (!capturedImages.isEmpty) {
-        shouldPop = await _showBackDialog() ?? false;
-      }
-      if (context.mounted && shouldPop) {
-        Navigator.pop(context);
-      }
-    },
-
-    child:Scaffold(
-      backgroundColor: Colors.black,
-      body: Column(
-        children: [
-          Expanded(
-              child: FutureBuilder<void>(
-            future: _initializeControllerFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done) {
-                // If the Future is complete, display the preview.
-                return SizedBox(
-                    width: MediaQuery.of(context).size.width,
-                    child: FittedBox(
-                      fit: BoxFit.fitWidth,
-                      child: SizedBox(
-                        height: MediaQuery.of(context).size.width *
-                            _controller.value.aspectRatio,
+          if (didPop) {
+            return;
+          }
+          bool shouldPop = true;
+          if (!capturedImages.isEmpty) {
+            shouldPop = await _showBackDialog() ?? false;
+          }
+          if (context.mounted && shouldPop) {
+            Navigator.pop(context);
+          }
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Column(
+            children: [
+              Expanded(
+                  child: FutureBuilder<void>(
+                future: _initializeControllerFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    // If the Future is complete, display the preview.
+                    return SizedBox(
                         width: MediaQuery.of(context).size.width,
-                        child: CameraPreview(
-                          _controller,
-                          child: AnimatedContainer(
-                            //  width: animphoto ? 200.0 : 100.0,
-                            //   height: animphoto ? 100.0 : 200.0,
-                            color:
-                                animphoto ? Colors.white70 : Colors.transparent,
-                            //    alignment:
-                            //    animphoto ? Alignment.center : AlignmentDirectional.topCenter,
-                            duration: const Duration(seconds: 1),
-                            curve: Curves.fastOutSlowIn,
+                        child: FittedBox(
+                          fit: BoxFit.fitWidth,
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.width *
+                                _controller.value.aspectRatio,
+                            width: MediaQuery.of(context).size.width,
+                            child: CameraPreview(
+                              _controller,
+                              child: AnimatedContainer(
+                                //  width: animphoto ? 200.0 : 100.0,
+                                //   height: animphoto ? 100.0 : 200.0,
+                                color: animphoto
+                                    ? Colors.white70
+                                    : Colors.transparent,
+                                //    alignment:
+                                //    animphoto ? Alignment.center : AlignmentDirectional.topCenter,
+                                duration: const Duration(seconds: 1),
+                                curve: Curves.fastOutSlowIn,
 
-                            child: animphoto
-                                ? const Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.cloud_upload,
-                                            size: 75, color: Colors.black),
-                                        Text(
-                                          "Отправка на сервер",
-                                          style: TextStyle(fontSize: 18),
-                                        )
-                                      ],
-                                    ),
-                                  )
-                                : Container(),
-                          ),
+                                child: animphoto
+                                    ? const Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.cloud_upload,
+                                                size: 75, color: Colors.black),
+                                            Text(
+                                              "Отправка на сервер",
+                                              style: TextStyle(fontSize: 18),
+                                            )
+                                          ],
+                                        ),
+                                      )
+                                    : Container(),
+                              ),
+                            ),
+                          )
+                          // new CameraPreview(_controller),
+
+                          ,
+                        ));
+                  } else {
+                    // Otherwise, display a loading indicator.
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                },
+              )),
+
+              //  ),
+
+              Container(
+                color: Colors.black,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 35),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      onPressed: () async {
+                        if (capturedImages.isEmpty) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(
+                            content: Text("Ничего не сфотографировано"),
+                          ));
+
+                          return;
+                        }
+
+                        if (animphoto) return;
+                        setState(() {
+                          animphoto = true;
+                        });
+
+                        //   List<http.MultipartFile> multipartFiles = [];
+
+                        for (var elem in capturedImages) {
+                          //    multipartFiles.add(multipartFile);
+
+                          var postUri = Uri.parse(
+                              "https://teplogico.ru/gn/${widget.name}/${widget.politon}");
+                          if (widget.brak) {
+                            postUri = Uri.parse(
+                                "https://teplogico.ru/gnbrak/${widget.name}/${widget.iddetal}");
+                          }
+                          http.MultipartRequest request =
+                              http.MultipartRequest("POST", postUri);
+
+                          var multipartFile = await http.MultipartFile.fromPath(
+                            'file_input', // Название поля для файла на сервере
+                            elem.path,
+                          );
+                          request.files.add(multipartFile);
+
+                          http.StreamedResponse response = await request.send();
+                          print(response.statusCode);
+                         // print(response.);
+                        }
+                        capturedImages.clear();
+
+                        await Future.delayed(const Duration(milliseconds: 100));
+
+                        setState(() {
+                          animphoto = false;
+                        });
+
+                        Navigator.pop(context);
+
+                        return;
+                        if (widget.cameras.length > 1) {
+                          setState(() {
+                            selectedCamera = selectedCamera == 0 ? 1 : 0;
+                            initializeCamera(selectedCamera);
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(
+                            content: Text('No secondary camera found'),
+                            duration: Duration(seconds: 2),
+                          ));
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.check_circle_sharp,
+                        color: Colors.green,
+                        size: 50,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 0),
+                    ),
+                    GestureDetector(
+                      onTap: () async {
+                        await delaydoto();
+                      },
+                      child: Container(
+                        height: 60,
+                        width: 60,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
                         ),
-                      )
-                      // new CameraPreview(_controller),
-
-                      ,
-                    ));
-              } else {
-                // Otherwise, display a loading indicator.
-                return const Center(child: CircularProgressIndicator());
-              }
-            },
-          )),
-
-          //  ),
-
-          Container(
-            color: Colors.black,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 35),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () async {
-                    if (capturedImages.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Ничего не сфотографировано"),
-                      ));
-
-                      return;
-                    }
-
-                    if (animphoto) return;
-                    setState(() {
-                      animphoto = true;
-                    });
-
-                    //   List<http.MultipartFile> multipartFiles = [];
-
-                    for (var elem in capturedImages) {
-                      //    multipartFiles.add(multipartFile);
-                      var postUri =
-                          Uri.parse("https://teplogico.ru/gn/${widget.name}/1");
-
-                      http.MultipartRequest request =
-                          http.MultipartRequest("POST", postUri);
-
-                      var multipartFile = await http.MultipartFile.fromPath(
-                        'file_input', // Название поля для файла на сервере
-                        elem.path,
-                      );
-                      request.files.add(multipartFile);
-
-                      http.StreamedResponse response = await request.send();
-                      print(response.statusCode);
-                    }
-                    capturedImages.clear();
-
-                    await Future.delayed(const Duration(milliseconds: 100));
-
-                    setState(() {
-                      animphoto = false;
-                    });
-
-                    Navigator.pop(context);
-
-                    return;
-                    if (widget.cameras.length > 1) {
-                      setState(() {
-                        selectedCamera = selectedCamera == 0 ? 1 : 0;
-                        initializeCamera(selectedCamera);
-                      });
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('No secondary camera found'),
-                        duration: Duration(seconds: 2),
-                      ));
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.check_circle_sharp,
-                    color: Colors.green,
-                    size: 50,
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-                ),
-                GestureDetector(
-                  onTap: () async {
-                    await delaydoto();
-                  },
-                  child: Container(
-                    height: 60,
-                    width: 60,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
+                      ),
                     ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    if (capturedImages.isEmpty) return;
-                    print(capturedImages[0]);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                GalleryScreen(images: capturedImages)));
-                  },
-                  child: Container(
-                    height: 60,
-                    width: 60,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white),
-                      color: Colors.black,
-                      image: capturedImages.isNotEmpty
-                          ? DecorationImage(
-                              image: FileImage(capturedImages.last),
-                              fit: BoxFit.cover)
-                          : null,
+                    GestureDetector(
+                      onTap: () {
+                        if (capturedImages.isEmpty) return;
+                        print(capturedImages[0]);
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    GalleryScreen(images: capturedImages)));
+                      },
+                      child: Container(
+                        height: 60,
+                        width: 60,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white),
+                          color: Colors.black,
+                          image: capturedImages.isNotEmpty
+                              ? DecorationImage(
+                                  image: FileImage(capturedImages.last),
+                                  fit: BoxFit.cover)
+                              : null,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ));
+        ));
   }
 }
