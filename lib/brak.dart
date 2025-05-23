@@ -373,6 +373,9 @@ www.giulianovars.ru
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        appBar:   AppBar(
+          title: Text("Брак"),
+        ),
         body: Container(
           padding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
           child: articul == ''

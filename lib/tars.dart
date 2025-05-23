@@ -193,7 +193,12 @@ if(spiss[res_DetalKode]==null){
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return Scaffold(
+
+        appBar:   AppBar(
+        title: Text("Тары"),
+    ),
+    body:  Center(
         child: statuss == 0
             ? Text("Отсканируй штрихкод тары")
             : statuss != 3
@@ -238,6 +243,6 @@ if(spiss[res_DetalKode]==null){
                       ),
                     ],
                   )
-                ])));
+                ]))));
   }
 }

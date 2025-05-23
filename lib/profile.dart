@@ -36,7 +36,14 @@ class _profileState extends State<profile> {
 
   @override
   Widget build(BuildContext context) {
-    return  ListView(children: [ tehhclass.user_nik == ''
+
+    return Scaffold(
+
+        appBar:   AppBar(
+        title: Text("Пользователь"),
+    ),
+    body:
+    ListView(children: [ tehhclass.user_nik == ''
           ? AlertDialog(
         title: const Text('Ваш логин'),
         content: SingleChildScrollView(
@@ -98,7 +105,7 @@ class _profileState extends State<profile> {
 
 
           }, child: Text("Выход"))
-        ],))],);
+        ],))],));
 
 
   }

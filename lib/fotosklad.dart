@@ -137,6 +137,10 @@ class _fotoskladState extends State<fotosklad> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+
+            appBar:   AppBar(
+              title: Text("Ящик с фурнитурой"),
+            ),
         body: Container(
           child: Column(
             children: <Widget>[

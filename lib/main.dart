@@ -115,17 +115,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tehhclass.selectedIndex == 0
-            ? "Поставщики"
-            : tehhclass.selectedIndex == 1
-                ? "Ящик с фурнитурой"
-                : tehhclass.selectedIndex == 2
-                    ? "Тары"
-                    : tehhclass.selectedIndex == 3
-                        ? "Брак"
-                        : "Пользователь"),
-      ),
+
       body: IndexedStack(children: <Widget>[
         postavshikir(_cameras),
         fotosklad(_cameras),

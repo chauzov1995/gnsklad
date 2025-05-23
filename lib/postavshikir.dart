@@ -172,7 +172,12 @@ print(object);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Scaffold(
+
+        appBar:   AppBar(
+        title: Text("Поставщики"),
+    ),
+    body: Container(
         child: Column(
       children: <Widget>[
         const SizedBox(
@@ -241,6 +246,6 @@ print(object);
           ),
         ),
       ],
-    ));
+    )));
   }
 }
