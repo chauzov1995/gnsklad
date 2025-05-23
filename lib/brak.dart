@@ -19,6 +19,9 @@ import 'package:gnsklad/main.dart';
 import 'package:gnsklad/photoobzor.dart';
 import 'package:gnsklad/tehhclass.dart';
 import 'package:intl/intl.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 
@@ -40,7 +43,6 @@ class brak extends StatefulWidget {
 class _brakState extends State<brak> {
   _brakState();
 
-
   String _scannerStatus = "Scanner status";
   String _lastCode = '';
   final bool _isEnabled = true;
@@ -48,6 +50,7 @@ class _brakState extends State<brak> {
   String articul = "";
   String orderId = "";
   String name = "";
+  String salon_zak = "";
   int kolvo = 0;
 
   String? selectedzakaz;
@@ -69,9 +72,43 @@ class _brakState extends State<brak> {
     tehhclass.receiver.messages.listen((BroadcastMessage? object) async {
       if (tehhclass.selectedIndex == 3) {
         if (object != null) {
+          if (_commentController.text != "") {
+            bool? shouldProceed = await showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text('Внимание'),
+                  content:
+                      Text('Вы не отправили замечание о браке. Продолжить?'),
+                  actions: [
+                    TextButton(
+                      child: Text('Отмена'),
+                      onPressed: () {
+                        Navigator.of(context).pop(false);
+                      },
+                    ),
+                    ElevatedButton(
+                      child: Text('Да'),
+                      onPressed: () {
+                        Navigator.of(context).pop(true);
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
 
-          _commentController.text="";
-          kolvosel=0;
+            if (shouldProceed == true) {
+              _commentController.text = "";
+              // выполнить переход или действие
+            } else {
+              return;
+            }
+          }
+
+          kolvosel = 0;
+          _isSending = false;
+          salon_zak = "";
 
           print(object);
           if (object.data!.containsKey('value')) {
@@ -87,9 +124,9 @@ class _brakState extends State<brak> {
           print(jsonDecode(_lastCode)['article']);
           var jsonotv = jsonDecode(_lastCode);
           articul = jsonotv['article'];
-          orderId = jsonotv['number'].toString().split('_')[1];
+          salon_zak = jsonotv['number'].toString();
+          orderId = salon_zak.split('_')[1];
           selectedzakaz = orderId;
-
 
           final uri = Uri.parse('http://172.16.4.104:3000/sql');
 
@@ -113,7 +150,8 @@ class _brakState extends State<brak> {
             "params": [orderId, articul]
           };
 
-          final response = await http.post(uri,
+          final response = await http.post(
+            uri,
             headers: {"Content-Type": "application/json"},
             body: json.encode(requestBody),
           );
@@ -129,11 +167,8 @@ class _brakState extends State<brak> {
             print('Ошибка сервера: ${response.statusCode}');
           }
 
-
           selectzakaz();
           setState(() {});
-
-
 
           return;
 
@@ -146,17 +181,14 @@ class _brakState extends State<brak> {
         }
       }
     });
-
-
   }
-
 
   Future<void> selectzakaz() async {
     setState(() {
-    photospisurl=[];
+      photospisurl = [];
     });
     var response = await http
-        .get(Uri.parse("https://teplogico.ru/gn1brak/" + orderId.toString()));
+        .get(Uri.parse("https://teplogico.ru/gn1brak/" + articul.toString()));
     photospisurl = json.decode(response.body);
     print(photospisurl);
     setState(() {});
@@ -164,7 +196,6 @@ class _brakState extends State<brak> {
 
   @override
   void dispose() {
-
     super.dispose();
   }
 
@@ -175,16 +206,169 @@ class _brakState extends State<brak> {
     sdkver = androidInfo.version.sdkInt;
   }
 
-
   int kolvosel = 0;
 
   void _selectPage(int page) {
-
-setState(() {
-  kolvosel=page;
-  print(kolvosel);
-});
+    setState(() {
+      kolvosel = page;
+      print(kolvosel);
+    });
   }
+
+  bool _isSending = false;
+
+  Future<void> sendEmail() async {
+    setState(() => _isSending = true);
+    String telopisma = "";
+    final uri = Uri.parse('http://172.16.4.104:3000/sql');
+
+    // Получаем сегодняшнюю дату в формате ДД.ММ.ГГГГ
+    final now = DateTime.now();
+    final formattedDate = DateFormat('dd.MM.yyyy').format(now);
+
+    final requestBody = {
+      "nik": tehhclass.user_nik,
+      "pass": tehhclass.user_pass,
+      "sql": """
+  SELECT
+    mc.art_material,
+    mc.name,
+    mwz.kolvo,
+    mwz.prim,
+    (
+        SELECT SUM(mk.kolvo)
+        FROM MKonstr mk
+        WHERE mk.Art_Material = mc.art_material AND mk.CUSTOMID = mwz.MAGAZINEID
+    ) AS sum_kolvo_from_konstr
+FROM
+    magazinewotdelkazam mwz
+LEFT JOIN mcustom mc ON mc.id = mwz.MCustomID
+LEFT JOIN magazinezam mz ON mz.id = mwz.MAGAZINEZAMID
+WHERE
+    mwz.MAGAZINEID = ? and mz.DATEINSERT=?
+
+    """,
+      "params": [orderId, formattedDate]
+    };
+
+    final response44 = await http.post(
+      uri,
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(requestBody),
+    );
+
+    if (response44.statusCode == 200) {
+      var data = json.decode(response44.body);
+      print('Ответ от сервера: $data');
+
+      for (var p in data) {
+        telopisma += '''
+          ${p['ART_MATERIAL']} - ${p['NAME']} - ${p['KOLVO']}шт (из ${p['SUM_KOLVO_FROM_KONSTR']}-х) - ${p['PRIM']}.
+        ''';
+      }
+    } else {
+      print('Ошибка сервера: ${response44.statusCode}');
+      return;
+    }
+
+    print("asdasd");
+
+    const username = 'robo@giulianovars.ru';
+    const password = '91B009E0055'; // Лучше хранить в .env или защищённо
+
+    final smtpServer = SmtpServer(
+      'smtp.yandex.ru',
+      port: 465,
+      ssl: true,
+      username: username,
+      password: password,
+    );
+    print("https://teplogico.ru/gn1brakrassil/" + orderId.toString());
+    var response = await http.get(
+        Uri.parse("https://teplogico.ru/gn1brakrassil/" + orderId.toString()));
+    print(json.decode(response.body));
+    List<dynamic> urls = json.decode(response.body);
+    print("asdasd");
+    print(urls);
+
+    // Скачиваем все файлы
+    final tempDir = await getTemporaryDirectory();
+    final attachments = <FileAttachment>[];
+
+    for (int i = 0; i < urls.length; i++) {
+      final url = urls[i]['path'];
+      final l_iddetal = urls[i]['iddetal'];
+      final l_id = urls[i]['id'];
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final file = File('${tempDir.path}/attachment_$i.jpg');
+        await file.writeAsBytes(response.bodyBytes);
+
+        attachments.add(FileAttachment(file)
+          ..location = Location.attachment
+          ..fileName = '${l_iddetal}_${l_id}.jpg');
+      } else {
+        print('Ошибка при загрузке: $url');
+      }
+    }
+
+    // Создаём письмо
+    final message = Message()
+      ..from = Address(username, 'Клюкин Дмитрий')
+      ..recipients.add('k3@resursm.ru') // основной получатель
+      //   ..ccRecipients.add('manager@example.com') // копия
+      ..subject = 'Брак стекла — ${salon_zak}'
+      ..text = '''
+Доброе утро!
+
+Во вложении фото брака к заказу ${salon_zak}:
+${telopisma}
+
+
+С уважением, Клюкин Дмитрий,
+Технолог ЗАО ПО «Ресурс»,
+www.giulianovars.ru
+тел: 8-922-935-30-45,
+      8-961-563-12-86.
+'''
+      ..attachments = attachments;
+
+    try {
+      final sendReport = await send(message, smtpServer);
+      print('Письмо отправлено: $sendReport');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Письмо отправлено')),
+      );
+    } on MailerException catch (e) {
+      print('Ошибка при отправке письма: $e');
+      for (var p in e.problems) {
+        print('Problem: ${p.code}: ${p.msg}');
+      }
+    } finally {
+      setState(() => _isSending = false);
+    }
+  }
+
+  void _insertTextAtCursor(String text) {
+    final textValue = _commentController.text;
+    final selection = _commentController.selection;
+
+    final newText = textValue.replaceRange(
+      selection.start,
+      selection.end,
+      text,
+    );
+
+    final cursorPosition = selection.start + text.length;
+
+    _commentController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorPosition),
+    );
+  }
+
+  final words = ['брак', 'скол'];
 
   @override
   Widget build(BuildContext context) {
@@ -192,77 +376,152 @@ setState(() {
         body: Container(
           padding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
           child: articul == ''
-              ? Center(child: Text("Отсканируй QR-код"))
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text("Отсканируй QR-код"),
+                  orderId == ""
+                      ? Container()
+                      : Column(
+                          children: [
+                            Text(
+                              "или\nпо заказу ${orderId}",
+                              textAlign: TextAlign.center,
+                            ),
+                            _isSending
+                                ? Padding(
+                                    padding: EdgeInsets.all(6),
+                                    child: Center(
+                                        child:
+                                            const CircularProgressIndicator()),
+                                  )
+                                : ElevatedButton(
+                                    onPressed: sendEmail,
+                                    child: const Text('Отправить письмо'),
+                                  ), //
+                          ],
+                        )
+                ]))
               : ListView(
                   children: <Widget>[
                     Card(
                       child: ListTile(
-                        title: Text(articul),
-                        subtitle: Column(children: [Text('Заказ: ${orderId}\n${name}\nКол-во: $kolvo'),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: List.generate(kolvo>7?7:kolvo, (index) {
-                              final pageNumber = index + 1;
-                              final isSelected = pageNumber == kolvosel;
+                          title: Text(articul),
+                          subtitle: Column(
+                            children: [
+                              Text(
+                                  'Заказ: ${orderId}\n${name}\nКол-во: $kolvo'),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: List.generate(kolvo > 7 ? 7 : kolvo,
+                                    (index) {
+                                  final pageNumber = index + 1;
+                                  final isSelected = pageNumber == kolvosel;
 
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                                child: SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      backgroundColor: isSelected ? Colors.blue : Colors.grey[300],
-                                      foregroundColor: isSelected ? Colors.white : Colors.black,
-                                      textStyle: const TextStyle(fontSize: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 2.0),
+                                    child: SizedBox(
+                                      width: 32,
+                                      height: 32,
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          backgroundColor: isSelected
+                                              ? Colors.blue
+                                              : Colors.grey[300],
+                                          foregroundColor: isSelected
+                                              ? Colors.white
+                                              : Colors.black,
+                                          textStyle:
+                                              const TextStyle(fontSize: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                        ),
+                                        onPressed: () =>
+                                            _selectPage(pageNumber),
+                                        child: Text('$pageNumber'),
                                       ),
                                     ),
-                                    onPressed: () => _selectPage(pageNumber),
-                                    child: Text('$pageNumber'),
-                                  ),
-                                ),
-                              );
-                            }),
-                          )
-                        ],)
-                      ),
+                                  );
+                                }),
+                              )
+                            ],
+                          )),
                     ),
                     const SizedBox(height: 16),
                     const Text('Примечание о браке:'),
                     TextField(
                       controller: _commentController,
                       maxLines: 3,
-                      textInputAction: TextInputAction.send, // 👈 это покажет кнопку "Отправить"
+                      textInputAction: TextInputAction.send,
+                      // 👈 это покажет кнопку "Отправить"
                       onSubmitted: (value) async {
                         print("asdasdasd");
 
-if(kolvosel==0){
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('Не выбрано количество'),
-      duration: Duration(seconds: 2),
-      behavior: SnackBarBehavior.floating, // плавающий стиль (по желанию)
-    ),
-  );
+                        if (kolvosel == 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Не выбрано количество'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior
+                                  .floating, // плавающий стиль (по желанию)
+                            ),
+                          );
 
-  return;
-}
-
+                          return;
+                        }
 
                         final uri = Uri.parse('http://172.16.4.104:3000/sql');
 
-
                         // Получаем сегодняшнюю дату в формате ДД.ММ.ГГГГ
                         final now = DateTime.now();
-                        final formattedDate = DateFormat('dd.MM.yyyy').format(now);
+                        final formattedDate =
+                            DateFormat('dd.MM.yyyy').format(now);
 
-                        final requestBody = {
+                        final requestBody3 = {
                           "nik": tehhclass.user_nik,
                           "pass": tehhclass.user_pass,
                           "sql": """
+     SELECT FIRST 1 ID FROM MAGAZINEZAM 
+WHERE 
+  MAGAZINEID = ? AND 
+  PRIM = ? AND 
+  DATEINSERT = ?;
+    """,
+                          "params": [orderId, "Брак стекла", formattedDate]
+                        };
+                        int? insertedId = null;
+                        final response3 = await http.post(
+                          uri,
+                          headers: {"Content-Type": "application/json"},
+                          body: json.encode(requestBody3),
+                        );
+
+                        if (response3.statusCode == 200) {
+                          final jsonResponse = json.decode(response3.body);
+                          print(jsonResponse);
+                          if (jsonResponse is List && jsonResponse.isNotEmpty) {
+                            insertedId = jsonResponse[0]["ID"];
+                            print("Найден ID: $insertedId");
+                          } else {
+                            print(
+                                "ID не найден — ответ пустой или не содержит нужных данных");
+                          }
+                        } else {
+                          print('Ошибка сервера: ${response3.statusCode}');
+                          print(response3.body);
+                          return;
+                        }
+
+                        //  return;
+
+                        if (insertedId == null) {
+                          final requestBody2 = {
+                            "nik": tehhclass.user_nik,
+                            "pass": tehhclass.user_pass,
+                            "sql": """
       INSERT INTO MAGAZINEZAM (
         MAGAZINEID, USERGROUPID, USERID, MPRETENTYPEID, FINDUSERID,
         PRIM, DATEINSERT, MOPERID, INSERTUSER, FLAGOK, BRAKFLAG, MERA
@@ -282,37 +541,33 @@ if(kolvosel==0){
         205          -- MERA
       ) RETURNING ID;
     """,
-                          "params": [
-                            orderId,
-                            "Брак стекла",
-                            formattedDate
+                            "params": [orderId, "Брак стекла", formattedDate]
+                          };
 
-                          ]
-                        };
+                          final response2 = await http.post(
+                            uri,
+                            headers: {"Content-Type": "application/json"},
+                            body: json.encode(requestBody2),
+                          );
 
-                        final response2 = await http.post(
-                          uri,
-                          headers: {"Content-Type": "application/json"},
-                          body: json.encode(requestBody),
-                        );
+                          if (response2.statusCode == 200) {
+                            final jsonResponse = json.decode(response2.body);
 
-                        if (response2.statusCode == 200) {
-                          final jsonResponse = json.decode(response2.body);
-
-                            final insertedId = jsonResponse["ID"];
+                            insertedId = jsonResponse["ID"];
                             print("Вставлен ID: $insertedId");
+                          } else {
+                            print('Ошибка сервера: ${response2.statusCode}');
+                            print(response2.body);
+                            return;
+                          }
+                        }
 
-
-
-                          final uri = Uri.parse('http://172.16.4.104:3000/sql');
-
-
-print(_commentController.text);
-print("kolvosel $kolvosel");
-                          final requestBody = {
-                            "nik": tehhclass.user_nik,
-                            "pass": tehhclass.user_pass,
-                            "sql": """
+                        print(_commentController.text);
+                        print("kolvosel $kolvosel");
+                        final requestBody = {
+                          "nik": tehhclass.user_nik,
+                          "pass": tehhclass.user_pass,
+                          "sql": """
      INSERT INTO MAGAZINEWOTDELKAZAM (    
     MAGAZINEID,    
     MAGAZINEZAMID,
@@ -332,63 +587,78 @@ VALUES (
 	?            -- PRIM
 );
     """,
-                            "params": [
-                              orderId,
-                              insertedId,
-                              orderId,
-                              articul,
-                              kolvosel,
-                              _commentController.text
+                          "params": [
+                            orderId,
+                            insertedId,
+                            orderId,
+                            articul,
+                            kolvosel,
+                            _commentController.text
+                          ]
+                        };
 
-                            ]
-                          };
+                        final response = await http.post(
+                          uri,
+                          headers: {"Content-Type": "application/json"},
+                          body: json.encode(requestBody),
+                        );
 
-                          final response = await http.post(
-                            uri,
-                            headers: {"Content-Type": "application/json"},
-                            body: json.encode(requestBody),
-                          );
+                        if (response.statusCode == 200) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                              'Успешно отправлено',
+                              style:
+                                  TextStyle(color: Colors.white), // Белый текст
+                            ),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating,
+                          ));
 
-                          if (response.statusCode == 200) {
+                          setState(() {
+                            _commentController.text = "";
+                            articul = '';
+                          });
 
-                            ScaffoldMessenger.of(context).showSnackBar(  SnackBar(
-                              content: Text(
-                                'Успешно отправлено',
-                                style: TextStyle(color: Colors.white), // Белый текст
-                              ),
-                              backgroundColor: Colors.green,
-                              behavior: SnackBarBehavior.floating,
-                            ));
-
-                            setState(() {
-                              articul ='';
-                            });
-
-
-                            print("Всё ок");
-
-                          } else {
-                            print('Ошибка сервера: ${response.statusCode}');
-                            print(response.body);
-                          }
-
-
+                          print("Всё ок");
                         } else {
-                          print('Ошибка сервера: ${response2.statusCode}');
-                          print(response2.body);
+                          print('Ошибка сервера: ${response.statusCode}');
+                          print(response.body);
                         }
-
-
-
-
                       },
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: 'Опишите проблему...',
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: words.map((word) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                          child: SizedBox(
+                            width: 52,
+                            height: 32,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                backgroundColor: Colors.grey[300],
+                                foregroundColor: Colors.black,
+                                textStyle: const TextStyle(fontSize: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              onPressed: () {
+                                _insertTextAtCursor(word + " ");
+                              },
+                              child: Text(word),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                     const SizedBox(height: 16),
-                   // const Text('Фото:'),
+                    // const Text('Фото:'),
                     Expanded(
                         child: Container(
                       padding: EdgeInsets.only(left: 5, right: 5, top: 5),
@@ -450,10 +720,13 @@ VALUES (
                         context,
                         MaterialPageRoute(
                             builder: (context) => camera_screen_sklad(
-                                name: orderId,
-                                cameras: widget.cameras, brak: true, iddetal: articul,)));
+                                  name: orderId,
+                                  cameras: widget.cameras,
+                                  brak: true,
+                                  iddetal: articul,
+                                )));
 
-                       selectzakaz();
+                    selectzakaz();
                   },
                 )
               ]));
