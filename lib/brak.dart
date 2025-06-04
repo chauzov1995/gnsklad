@@ -8,8 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 
 import 'package:flutter_datawedge/flutter_datawedge.dart';
-import 'package:flutter_datawedge/models/scan_result.dart';
-import 'package:flutter_datawedge/models/scanner_status.dart';
+
 import 'package:gnsklad/camera_screen.dart';
 import 'package:gnsklad/camera_screen19.dart';
 import 'package:gnsklad/camera_screen_sklad.dart';
@@ -29,6 +28,8 @@ import 'package:camera/camera.dart';
 import 'package:gnsklad/postavshikir.dart';
 import 'package:gnsklad/tars.dart';
 import 'package:http/http.dart' as http;
+
+import 'QRScanPage.dart';
 
 // Define a custom Form widget.
 class brak extends StatefulWidget {
@@ -67,73 +68,57 @@ class _brakState extends State<brak> {
 
   List<dynamic> photospisurl = [];
 
-  void initScanner4() {
-    //для новых сканеров
-    tehhclass.receiver.messages.listen((BroadcastMessage? object) async {
-      if (tehhclass.selectedIndex == 3) {
-        if (object != null) {
-          if (_commentController.text != "") {
-            bool? shouldProceed = await showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: Text('Внимание'),
-                  content:
-                      Text('Вы не отправили замечание о браке. Продолжить?'),
-                  actions: [
-                    TextButton(
-                      child: Text('Отмена'),
-                      onPressed: () {
-                        Navigator.of(context).pop(false);
-                      },
-                    ),
-                    ElevatedButton(
-                      child: Text('Да'),
-                      onPressed: () {
-                        Navigator.of(context).pop(true);
-                      },
-                    ),
-                  ],
-                );
-              },
-            );
+  qrscanres() async {
+    if (_commentController.text != "") {
+      bool? shouldProceed = await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Внимание'),
+            content: Text('Вы не отправили замечание о браке. Продолжить?'),
+            actions: [
+              TextButton(
+                child: Text('Отмена'),
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+              ),
+              ElevatedButton(
+                child: Text('Да'),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+              ),
+            ],
+          );
+        },
+      );
 
-            if (shouldProceed == true) {
-              _commentController.text = "";
-              // выполнить переход или действие
-            } else {
-              return;
-            }
-          }
+      if (shouldProceed == true) {
+        _commentController.text = "";
+        // выполнить переход или действие
+      } else {
+        return;
+      }
+    }
 
-          kolvosel = 0;
-          _isSending = false;
-          salon_zak = "";
+    kolvosel = 0;
+    _isSending = false;
+    salon_zak = "";
 
-          print(object);
-          if (object.data!.containsKey('value')) {
-            _lastCode = object.data!['value'];
-          }
-          if (object.data!.containsKey('scandata')) {
-            _lastCode = object.data!['scandata'];
-          }
-          if (object.data!.containsKey('SCAN_BARCODE1')) {
-            _lastCode = object.data!['SCAN_BARCODE1'];
-          }
+    print(jsonDecode(_lastCode)['article']);
+    var jsonotv = jsonDecode(_lastCode);
+    articul = jsonotv['article'];
+    salon_zak = jsonotv['number'].toString();
+    orderId = salon_zak.split('_')[1];
+    selectedzakaz = orderId;
 
-          print(jsonDecode(_lastCode)['article']);
-          var jsonotv = jsonDecode(_lastCode);
-          articul = jsonotv['article'];
-          salon_zak = jsonotv['number'].toString();
-          orderId = salon_zak.split('_')[1];
-          selectedzakaz = orderId;
+    final uri = Uri.parse('http://172.16.4.104:3000/sql');
 
-          final uri = Uri.parse('http://172.16.4.104:3000/sql');
-
-          final requestBody = {
-            "nik": tehhclass.user_nik,
-            "pass": tehhclass.user_pass,
-            "sql": """
+    final requestBody = {
+      "nik": tehhclass.user_nik,
+      "pass": tehhclass.user_pass,
+      "sql": """
       SELECT 
         M.Art_Material,
         TP.MName AS NAMEF,
@@ -147,40 +132,79 @@ class _brakState extends State<brak> {
       GROUP BY 
         TP.MName, M.Art_Material
     """,
-            "params": [orderId, articul]
-          };
+      "params": [orderId, articul]
+    };
 
-          final response = await http.post(
-            uri,
-            headers: {"Content-Type": "application/json"},
-            body: json.encode(requestBody),
-          );
+    final response = await http.post(
+      uri,
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(requestBody),
+    );
 
-          if (response.statusCode == 200) {
-            var data = json.decode(response.body);
-            print('Ответ от сервера: $data');
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body);
+      print('Ответ от сервера: $data');
 
-            var otvet = data[0];
-            name = otvet['NAMEF'];
-            kolvo = otvet['KOLVO_S'];
-          } else {
-            print('Ошибка сервера: ${response.statusCode}');
+      var otvet = data[0];
+      name = otvet['NAMEF'];
+      kolvo = otvet['KOLVO_S'];
+    } else {
+      print('Ошибка сервера: ${response.statusCode}');
+    }
+
+    selectzakaz();
+    setState(() {});
+
+    return;
+
+    print("initScanner4");
+    print(_lastCode);
+
+    selectedzakaz = _lastCode;
+    //await selectzakaz();
+    //filterSearchResults(_lastCode);
+  }
+
+  void initScanner4() {
+    //для новых сканеров
+    tehhclass.receiver.messages.listen((BroadcastMessage? object) async {
+      if (tehhclass.selectedIndex == 3) {
+        if (object != null) {
+          print(object);
+          if (object.data!.containsKey('value')) {
+            _lastCode = object.data!['value'];
           }
-
-          selectzakaz();
-          setState(() {});
-
-          return;
-
-          print("initScanner4");
-          print(_lastCode);
-
-          selectedzakaz = _lastCode;
-          //await selectzakaz();
-          //filterSearchResults(_lastCode);
+          if (object.data!.containsKey('scandata')) {
+            _lastCode = object.data!['scandata'];
+          }
+          if (object.data!.containsKey('SCAN_BARCODE1')) {
+            _lastCode = object.data!['SCAN_BARCODE1'];
+          }
+          qrscanres();
         }
       }
     });
+
+
+    //для зебры
+    StreamSubscription onScanSubscription =
+    tehhclass.dw.onScanResult.listen((ScanResult result) {
+      if(tehhclass.selectedIndex==3) {
+        setState(() async {
+          _lastCode = result.data;
+          qrscanres();
+          /*
+          print("initScanner2");
+          print(_lastCode);
+          editingController.text = tehhclass.myFocusNode2.hasFocus?"":_lastCode;
+          selectedzakaz = _lastCode;
+          await selectzakaz();*/
+          //filterSearchResults(_lastCode);
+        });
+      }
+    });
+
+
   }
 
   Future<void> selectzakaz() async {
@@ -263,7 +287,7 @@ WHERE
 
       for (var p in data) {
         telopisma += '''
-          ${p['ART_MATERIAL']} - ${p['NAME']} - ${p['KOLVO']}шт (из ${p['SUM_KOLVO_FROM_KONSTR']}-х) - ${p['PRIM']}.
+  ${p['ART_MATERIAL']} - ${p['NAME']} - ${p['KOLVO']}шт (из ${p['SUM_KOLVO_FROM_KONSTR']}-х) - ${p['PRIM']}.
         ''';
       }
     } else {
@@ -323,7 +347,7 @@ WHERE
 Доброе утро!
 
 Во вложении фото брака к заказу ${salon_zak}:
-${telopisma}
+  ${telopisma}
 
 
 С уважением, Клюкин Дмитрий,
@@ -350,7 +374,12 @@ www.giulianovars.ru
     }
   }
 
+  final FocusNode _focusNode = FocusNode();
+
   void _insertTextAtCursor(String text) {
+    // Устанавливаем фокус
+    _focusNode.requestFocus();
+
     final textValue = _commentController.text;
     final selection = _commentController.selection;
 
@@ -373,8 +402,31 @@ www.giulianovars.ru
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar:   AppBar(
+        appBar: AppBar(
           title: Text("Брак"),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.qr_code),
+              tooltip: 'Сканировать QR-код',
+              onPressed: () async {
+                // Обработчик нажатия
+                print('QR иконка нажата');
+
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => QRScanPage()),
+                );
+                if (result != null) {
+                  print(result);
+                  _lastCode = result;
+                  qrscanres();
+                  /*  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('QR-код: $result')),
+                  );*/
+                }
+              },
+            ),
+          ],
         ),
         body: Container(
           padding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
@@ -398,7 +450,9 @@ www.giulianovars.ru
                                             const CircularProgressIndicator()),
                                   )
                                 : ElevatedButton(
-                                    onPressed: sendEmail,
+                                    onPressed: () {
+                                      sendEmail();
+                                    },
                                     child: const Text('Отправить письмо'),
                                   ), //
                           ],
@@ -454,77 +508,76 @@ www.giulianovars.ru
                           )),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Примечание о браке:'),
-                    TextField(
-                      controller: _commentController,
-                      maxLines: 3,
-                      textInputAction: TextInputAction.send,
-                      // 👈 это покажет кнопку "Отправить"
-                      onSubmitted: (value) async {
-                        print("asdasdasd");
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Примечание о браке:'),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            if (kolvosel == 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Не выбрано количество'),
+                                  duration: Duration(seconds: 2),
+                                  behavior: SnackBarBehavior
+                                      .floating, // плавающий стиль (по желанию)
+                                ),
+                              );
 
-                        if (kolvosel == 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Не выбрано количество'),
-                              duration: Duration(seconds: 2),
-                              behavior: SnackBarBehavior
-                                  .floating, // плавающий стиль (по желанию)
-                            ),
-                          );
+                              return;
+                            }
 
-                          return;
-                        }
+                            final uri =
+                                Uri.parse('http://172.16.4.104:3000/sql');
 
-                        final uri = Uri.parse('http://172.16.4.104:3000/sql');
+                            // Получаем сегодняшнюю дату в формате ДД.ММ.ГГГГ
+                            final now = DateTime.now();
+                            final formattedDate =
+                                DateFormat('dd.MM.yyyy').format(now);
 
-                        // Получаем сегодняшнюю дату в формате ДД.ММ.ГГГГ
-                        final now = DateTime.now();
-                        final formattedDate =
-                            DateFormat('dd.MM.yyyy').format(now);
-
-                        final requestBody3 = {
-                          "nik": tehhclass.user_nik,
-                          "pass": tehhclass.user_pass,
-                          "sql": """
+                            final requestBody3 = {
+                              "nik": tehhclass.user_nik,
+                              "pass": tehhclass.user_pass,
+                              "sql": """
      SELECT FIRST 1 ID FROM MAGAZINEZAM 
 WHERE 
   MAGAZINEID = ? AND 
   PRIM = ? AND 
   DATEINSERT = ?;
     """,
-                          "params": [orderId, "Брак стекла", formattedDate]
-                        };
-                        int? insertedId = null;
-                        final response3 = await http.post(
-                          uri,
-                          headers: {"Content-Type": "application/json"},
-                          body: json.encode(requestBody3),
-                        );
+                              "params": [orderId, "Брак стекла", formattedDate]
+                            };
+                            int? insertedId = null;
+                            final response3 = await http.post(
+                              uri,
+                              headers: {"Content-Type": "application/json"},
+                              body: json.encode(requestBody3),
+                            );
 
-                        if (response3.statusCode == 200) {
-                          final jsonResponse = json.decode(response3.body);
-                          print(jsonResponse);
-                          if (jsonResponse is List && jsonResponse.isNotEmpty) {
-                            insertedId = jsonResponse[0]["ID"];
-                            print("Найден ID: $insertedId");
-                          } else {
-                            print(
-                                "ID не найден — ответ пустой или не содержит нужных данных");
-                          }
-                        } else {
-                          print('Ошибка сервера: ${response3.statusCode}');
-                          print(response3.body);
-                          return;
-                        }
+                            if (response3.statusCode == 200) {
+                              final jsonResponse = json.decode(response3.body);
+                              print(jsonResponse);
+                              if (jsonResponse is List &&
+                                  jsonResponse.isNotEmpty) {
+                                insertedId = jsonResponse[0]["ID"];
+                                print("Найден ID: $insertedId");
+                              } else {
+                                print(
+                                    "ID не найден — ответ пустой или не содержит нужных данных");
+                              }
+                            } else {
+                              print('Ошибка сервера: ${response3.statusCode}');
+                              print(response3.body);
+                              return;
+                            }
 
-                        //  return;
+                            //  return;
 
-                        if (insertedId == null) {
-                          final requestBody2 = {
-                            "nik": tehhclass.user_nik,
-                            "pass": tehhclass.user_pass,
-                            "sql": """
+                            if (insertedId == null) {
+                              final requestBody2 = {
+                                "nik": tehhclass.user_nik,
+                                "pass": tehhclass.user_pass,
+                                "sql": """
       INSERT INTO MAGAZINEZAM (
         MAGAZINEID, USERGROUPID, USERID, MPRETENTYPEID, FINDUSERID,
         PRIM, DATEINSERT, MOPERID, INSERTUSER, FLAGOK, BRAKFLAG, MERA
@@ -544,33 +597,39 @@ WHERE
         205          -- MERA
       ) RETURNING ID;
     """,
-                            "params": [orderId, "Брак стекла", formattedDate]
-                          };
+                                "params": [
+                                  orderId,
+                                  "Брак стекла",
+                                  formattedDate
+                                ]
+                              };
 
-                          final response2 = await http.post(
-                            uri,
-                            headers: {"Content-Type": "application/json"},
-                            body: json.encode(requestBody2),
-                          );
+                              final response2 = await http.post(
+                                uri,
+                                headers: {"Content-Type": "application/json"},
+                                body: json.encode(requestBody2),
+                              );
 
-                          if (response2.statusCode == 200) {
-                            final jsonResponse = json.decode(response2.body);
+                              if (response2.statusCode == 200) {
+                                final jsonResponse =
+                                    json.decode(response2.body);
 
-                            insertedId = jsonResponse["ID"];
-                            print("Вставлен ID: $insertedId");
-                          } else {
-                            print('Ошибка сервера: ${response2.statusCode}');
-                            print(response2.body);
-                            return;
-                          }
-                        }
+                                insertedId = jsonResponse["ID"];
+                                print("Вставлен ID: $insertedId");
+                              } else {
+                                print(
+                                    'Ошибка сервера: ${response2.statusCode}');
+                                print(response2.body);
+                                return;
+                              }
+                            }
 
-                        print(_commentController.text);
-                        print("kolvosel $kolvosel");
-                        final requestBody = {
-                          "nik": tehhclass.user_nik,
-                          "pass": tehhclass.user_pass,
-                          "sql": """
+                            print(_commentController.text);
+                            print("kolvosel $kolvosel");
+                            final requestBody = {
+                              "nik": tehhclass.user_nik,
+                              "pass": tehhclass.user_pass,
+                              "sql": """
      INSERT INTO MAGAZINEWOTDELKAZAM (    
     MAGAZINEID,    
     MAGAZINEZAMID,
@@ -590,44 +649,78 @@ VALUES (
 	?            -- PRIM
 );
     """,
-                          "params": [
-                            orderId,
-                            insertedId,
-                            orderId,
-                            articul,
-                            kolvosel,
-                            _commentController.text
-                          ]
-                        };
+                              "params": [
+                                orderId,
+                                insertedId,
+                                orderId,
+                                articul,
+                                kolvosel,
+                                _commentController.text
+                              ]
+                            };
 
-                        final response = await http.post(
-                          uri,
-                          headers: {"Content-Type": "application/json"},
-                          body: json.encode(requestBody),
-                        );
+                            final response = await http.post(
+                              uri,
+                              headers: {"Content-Type": "application/json"},
+                              body: json.encode(requestBody),
+                            );
 
-                        if (response.statusCode == 200) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(
-                              'Успешно отправлено',
-                              style:
-                                  TextStyle(color: Colors.white), // Белый текст
+                            if (response.statusCode == 200) {
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(SnackBar(
+                                content: Text(
+                                  'Успешно отправлено',
+                                  style: TextStyle(
+                                      color: Colors.white), // Белый текст
+                                ),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                              ));
+
+                              setState(() {
+                                _commentController.text = "";
+                                articul = '';
+                              });
+
+                              print("Всё ок");
+                            } else {
+                              print('Ошибка сервера: ${response.statusCode}');
+                              print(response.body);
+                            }
+                          },
+
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue, // Цвет кнопки
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(10), // Скруглённые углы
                             ),
-                            backgroundColor: Colors.green,
-                            behavior: SnackBarBehavior.floating,
-                          ));
+                            //  elevation: 4,
+                          ),
+                          icon: const SizedBox(),
+                          // Пусто слева, если не нужна иконка до текста
+                          label: Row(
+                            children: const [
+                              Text(
+                                'Отправить',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(Icons.send, color: Colors.white),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    TextField(
+                      controller: _commentController,
+                      focusNode: _focusNode,
+                      maxLines: 3,
+                      // textInputAction: TextInputAction.send,
+                      // 👈 это покажет кнопку "Отправить"
 
-                          setState(() {
-                            _commentController.text = "";
-                            articul = '';
-                          });
-
-                          print("Всё ок");
-                        } else {
-                          print('Ошибка сервера: ${response.statusCode}');
-                          print(response.body);
-                        }
-                      },
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: 'Опишите проблему...',
@@ -694,13 +787,16 @@ VALUES (
                               errorWidget: (context, url, error) =>
                                   Icon(Icons.error),
                             ),
-                            onTap: () {
+                            onTap: () async {
                               print("adsasdas");
-                              Navigator.push(
+                              await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) =>
-                                          photoobzor(photospisurl[index])));
+                                      builder: (context) => photoobzor(
+                                          photospisurl[index],
+                                          "chauzov_gn_fotobrak")));
+
+                              selectzakaz();
                             },
                           ),
                         ),

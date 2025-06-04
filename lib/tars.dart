@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
-import 'package:flutter_datawedge/models/scan_result.dart';
-import 'package:flutter_datawedge/models/scanner_status.dart';
 import 'package:http/http.dart' as http;
 import 'package:gnsklad/tehhclass.dart';
 

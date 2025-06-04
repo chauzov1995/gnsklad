@@ -8,8 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 
 import 'package:flutter_datawedge/flutter_datawedge.dart';
-import 'package:flutter_datawedge/models/scan_result.dart';
-import 'package:flutter_datawedge/models/scanner_status.dart';
 import 'package:gnsklad/camera_screen.dart';
 import 'package:gnsklad/camera_screen19.dart';
 import 'package:gnsklad/camera_screen_sklad.dart';
@@ -212,13 +210,14 @@ class _fotoskladState extends State<fotosklad> {
                             CircularProgressIndicator(),),
                         errorWidget: (context, url, error) => Icon(Icons.error),
                       ),
-                      onTap: () {
+                      onTap: () async {
                         print("adsasdas");
-                        Navigator.push(
+                      await  Navigator.push(
                             context,
                             MaterialPageRoute(
                                 builder: (context) =>
-                                    photoobzor(photospisurl[index])));
+                                    photoobzor(photospisurl[index], "chauzov_gn_fotozakaz")));
+                        selectzakaz();
                       },
                     ),
                   ),

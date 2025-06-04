@@ -87,7 +87,18 @@ class _MyHomePageState extends State<MyHomePage> {
     // tehhclass.receiver.isListening
   }
 
+
+
   Future<void> firstinit() async {
+
+
+    await tehhclass.dw.initialize();
+  //  await tehhclass.dw.createDefaultProfile(profileName: "gnprof");
+
+
+   // print('asdasdasdsaasdasdassda');
+    //print(  (await tehhclass.dw.requestActiveProfile()).flatMap(transform));
+
     await tehhclass.receiver.start();
 
     // await  tehhclass.receiver.stop();
@@ -101,8 +112,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onItemTapped(int index) {
-    if (tehhclass.user_nik == '' && index == 2) {
-      index = 3;
+    if (tehhclass.user_nik == '' && (index == 2 ||  index == 3)) {
+      index = 4;
     }
 
     setState(() {

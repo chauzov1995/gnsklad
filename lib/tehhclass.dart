@@ -13,7 +13,7 @@ class tehhclass {
   static FocusNode myFocusNode2 = FocusNode();
 
 
-  static FlutterDataWedge dw = FlutterDataWedge(profileName: "gnprof");
+  static FlutterDataWedge dw = FlutterDataWedge();
 
   static BroadcastReceiver receiver = BroadcastReceiver(
     names: <String>["com.android.scanner.broadcast", "android.intent.action.SCANRESULT", "nlscan.action.SCANNER_RESULT"],
