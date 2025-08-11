@@ -41,7 +41,7 @@ class brak extends StatefulWidget {
   _brakState createState() => _brakState();
 }
 
-class _brakState extends State<brak> {
+class _brakState extends State<brak>   with WidgetsBindingObserver{
   _brakState();
 
   String _scannerStatus = "Scanner status";
@@ -55,10 +55,12 @@ class _brakState extends State<brak> {
   int kolvo = 0;
 
   String? selectedzakaz;
+  double _keyboardHeight = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     HttpOverrides.global = MyHttpOverrides();
     initScanner4();
@@ -110,7 +112,7 @@ class _brakState extends State<brak> {
     var jsonotv = jsonDecode(_lastCode);
     articul = jsonotv['article'];
     salon_zak = jsonotv['number'].toString();
-    orderId = salon_zak.split('_')[1];
+    orderId = salon_zak.split('_')[1].replaceAll('м', '');
     selectedzakaz = orderId;
 
     final uri = Uri.parse('http://172.16.4.104:3000/sql');
@@ -189,10 +191,20 @@ class _brakState extends State<brak> {
     //для зебры
     StreamSubscription onScanSubscription =
     tehhclass.dw.onScanResult.listen((ScanResult result) {
+
+
+
       if(tehhclass.selectedIndex==3) {
-        setState(() async {
+
+
+
+
+
+
           _lastCode = result.data;
+          setState(()  { });
           qrscanres();
+
           /*
           print("initScanner2");
           print(_lastCode);
@@ -200,12 +212,27 @@ class _brakState extends State<brak> {
           selectedzakaz = _lastCode;
           await selectzakaz();*/
           //filterSearchResults(_lastCode);
-        });
+
       }
     });
 
 
   }
+
+
+  @override
+  void didChangeMetrics() {
+    final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
+
+    if (_keyboardHeight > 0 && bottomInset == 0) {
+      // Клавиатура была открыта и закрылась
+      FocusScope.of(context).unfocus();
+    }
+
+    _keyboardHeight = bottomInset;
+  }
+
+
 
   Future<void> selectzakaz() async {
     setState(() {
@@ -220,6 +247,7 @@ class _brakState extends State<brak> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -288,7 +316,7 @@ WHERE
       for (var p in data) {
         telopisma += '''
   ${p['ART_MATERIAL']} - ${p['NAME']} - ${p['KOLVO']}шт (из ${p['SUM_KOLVO_FROM_KONSTR']}-х) - ${p['PRIM']}.
-        ''';
+''';
       }
     } else {
       print('Ошибка сервера: ${response44.statusCode}');
@@ -340,14 +368,16 @@ WHERE
     // Создаём письмо
     final message = Message()
       ..from = Address(username, 'Клюкин Дмитрий')
-      ..recipients.add('k3@resursm.ru') // основной получатель
+    //  ..recipients.add('k3@resursm.ru') // основной получатель
+      ..recipients.add('brakstekla@resursm.ru') // основной получатель
+    //  ..recipients.add('chauzov1995@yandex.ru') // основной получатель
       //   ..ccRecipients.add('manager@example.com') // копия
       ..subject = 'Брак стекла — ${salon_zak}'
       ..text = '''
 Доброе утро!
 
 Во вложении фото брака к заказу ${salon_zak}:
-  ${telopisma}
+${telopisma}
 
 
 С уважением, Клюкин Дмитрий,
@@ -374,11 +404,11 @@ www.giulianovars.ru
     }
   }
 
-  final FocusNode _focusNode = FocusNode();
+
 
   void _insertTextAtCursor(String text) {
     // Устанавливаем фокус
-    _focusNode.requestFocus();
+    tehhclass.myFocusNode3.requestFocus();
 
     final textValue = _commentController.text;
     final selection = _commentController.selection;
@@ -716,7 +746,7 @@ VALUES (
                     ),
                     TextField(
                       controller: _commentController,
-                      focusNode: _focusNode,
+                      focusNode: tehhclass.myFocusNode3,
                       maxLines: 3,
                       // textInputAction: TextInputAction.send,
                       // 👈 это покажет кнопку "Отправить"
@@ -755,8 +785,7 @@ VALUES (
                     ),
                     const SizedBox(height: 16),
                     // const Text('Фото:'),
-                    Expanded(
-                        child: Container(
+                  Container(
                       padding: EdgeInsets.only(left: 5, right: 5, top: 5),
                       // color: Colors.amber,
                       child: GridView(
@@ -801,7 +830,7 @@ VALUES (
                           ),
                         ),
                       ),
-                    ))
+                    )
                   ],
                 ),
         ),

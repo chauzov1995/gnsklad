@@ -70,11 +70,11 @@ class _fotoskladState extends State<fotosklad> {
 
 
     //для новых сканеров
-    tehhclass.receiver.messages.listen((BroadcastMessage? object) {
+    tehhclass.receiver.messages.listen((BroadcastMessage? object) async {
 
       if(tehhclass.selectedIndex==1) {
         if (object != null) {
-          setState(() async {
+
             if (object.data!.containsKey('value')) {
               _lastCode = object.data!['value'];
             }
@@ -91,7 +91,7 @@ class _fotoskladState extends State<fotosklad> {
                 _lastCode; //tehhclass.myFocusNode2.hasFocus?"":_lastCode;
             selectedzakaz = _lastCode;
             await selectzakaz();
-            //filterSearchResults(_lastCode);
+            setState(()  {
           });
         }
       }
@@ -101,16 +101,16 @@ class _fotoskladState extends State<fotosklad> {
 
     //для зебры
     StreamSubscription onScanSubscription =
-      tehhclass.dw.onScanResult.listen((ScanResult result) {
+      tehhclass.dw.onScanResult.listen((ScanResult result) async {
         if(tehhclass.selectedIndex==1) {
-          setState(() async {
+
             _lastCode = result.data;
             print("initScanner2");
             print(_lastCode);
             editingController.text = tehhclass.myFocusNode2.hasFocus?"":_lastCode;
             selectedzakaz = _lastCode;
             await selectzakaz();
-            //filterSearchResults(_lastCode);
+            setState(()  {
           });
         }
     });
@@ -229,7 +229,7 @@ class _fotoskladState extends State<fotosklad> {
         floatingActionButton: selectedzakaz == null
             ? null
             : Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                FloatingActionButton(
+          /*     FloatingActionButton(
                   heroTag: "btn1",
                   backgroundColor: Colors.greenAccent,
                   child: Text(
@@ -251,7 +251,7 @@ class _fotoskladState extends State<fotosklad> {
                 ),
                 SizedBox(
                   height: 10,
-                ),
+                ),*/
                 FloatingActionButton(
                   heroTag: "btn2",
                   child: Icon(Icons.photo_camera_rounded),

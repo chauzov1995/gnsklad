@@ -121,6 +121,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     tehhclass.myFocusNode1.unfocus();
     tehhclass.myFocusNode2.unfocus();
+    tehhclass.myFocusNode3.unfocus();
   }
 
   @override

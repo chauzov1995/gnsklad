@@ -11,6 +11,7 @@ class tehhclass {
   static int selectedIndex = 0;
   static FocusNode myFocusNode1 = FocusNode();
   static FocusNode myFocusNode2 = FocusNode();
+  static FocusNode myFocusNode3 = FocusNode();
 
 
   static FlutterDataWedge dw = FlutterDataWedge();

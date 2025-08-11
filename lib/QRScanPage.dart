@@ -30,6 +30,13 @@ class _QRScanPageState extends State<QRScanPage> {
             flex: 4,
             child: QRView(
               key: qrKey,
+              overlay: QrScannerOverlayShape(
+                borderColor: Colors.red,          // Цвет рамки
+                borderRadius: 10,                 // Скругление углов
+                borderLength: 30,                 // Длина линий углов
+                borderWidth: 10,                  // Толщина линий
+                cutOutSize: 250,                  // Размер области сканирования (квадрат в центре)
+              ),
               onQRViewCreated: _onQRViewCreated,
             ),
           ),
