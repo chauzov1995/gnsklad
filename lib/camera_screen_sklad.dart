@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gnsklad/main.dart';
@@ -89,6 +90,22 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
   bool animphoto = false;
 
   final double _kPickerSheetHeight = 350.0;
+
+
+  Future<void> pickImages() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: true,
+    );
+
+    if (result != null) {
+      setState(() {
+        capturedImages.addAll(
+          result.paths.map((path) => File(path!)).toList(),
+        );
+      });
+    }
+  }
 
   Widget _buildBottomPicker(Widget picker) {
     return Container(
@@ -412,6 +429,14 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
               ),
             ],
           ),
+          floatingActionButton: Padding(
+            padding: const EdgeInsets.only(bottom: 130), // поднимаем на 200 px
+            child: FloatingActionButton(
+              onPressed: pickImages,
+              child: const Icon(Icons.photo_library),
+            ),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         ));
   }
 }

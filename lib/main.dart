@@ -9,6 +9,7 @@ import 'package:gnsklad/postavshikir.dart';
 import 'package:gnsklad/profile.dart';
 import 'package:gnsklad/tars.dart';
 import 'package:gnsklad/tehhclass.dart';
+import 'package:gnsklad/update_service.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 
 import 'brak.dart';
@@ -65,6 +66,8 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
 
 
+
+
   const MyHomePage({Key? key, required this.title})
       : super(key: key);
 
@@ -75,6 +78,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final UpdateService updateService = UpdateService();
+
+
   @override
   void initState() {
     // TODO: implement initState
@@ -90,6 +96,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   Future<void> firstinit() async {
+
+
+  await  updateService.checkForUpdate(context);
 
 
     await tehhclass.dw.initialize();
