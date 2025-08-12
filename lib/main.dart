@@ -98,7 +98,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> firstinit() async {
 
 
-  await  updateService.checkForUpdate(context);
+    updateService.checkForUpdate(context);
 
 
     await tehhclass.dw.initialize();

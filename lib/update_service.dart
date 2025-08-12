@@ -26,9 +26,9 @@ print(currentVersion);
       if (latestVersion != currentVersion) {
         _showUpdateDialog(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("У вас уже последняя версия")),
-        );
+      //  ScaffoldMessenger.of(context).showSnackBar(
+        //  const SnackBar(content: Text("У вас уже последняя версия")),
+       // );
       }
     } catch (e) {
       debugPrint("Ошибка проверки обновления: $e");
