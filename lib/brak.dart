@@ -41,7 +41,7 @@ class brak extends StatefulWidget {
   _brakState createState() => _brakState();
 }
 
-class _brakState extends State<brak>   with WidgetsBindingObserver{
+class _brakState extends State<brak> with WidgetsBindingObserver {
   _brakState();
 
   String _scannerStatus = "Scanner status";
@@ -112,7 +112,7 @@ class _brakState extends State<brak>   with WidgetsBindingObserver{
     var jsonotv = jsonDecode(_lastCode);
     articul = jsonotv['article'];
     salon_zak = jsonotv['number'].toString();
-    orderId = salon_zak.split('_')[1].replaceAll('м', '');
+    orderId = salon_zak.split('_')[1].substring(0, 6);
     selectedzakaz = orderId;
 
     final uri = Uri.parse('http://172.16.4.104:3000/sql');
@@ -187,38 +187,24 @@ class _brakState extends State<brak>   with WidgetsBindingObserver{
       }
     });
 
-
     //для зебры
     StreamSubscription onScanSubscription =
-    tehhclass.dw.onScanResult.listen((ScanResult result) {
+        tehhclass.dw.onScanResult.listen((ScanResult result) {
+      if (tehhclass.selectedIndex == 3) {
+        _lastCode = result.data;
+        setState(() {});
+        qrscanres();
 
-
-
-      if(tehhclass.selectedIndex==3) {
-
-
-
-
-
-
-          _lastCode = result.data;
-          setState(()  { });
-          qrscanres();
-
-          /*
+        /*
           print("initScanner2");
           print(_lastCode);
           editingController.text = tehhclass.myFocusNode2.hasFocus?"":_lastCode;
           selectedzakaz = _lastCode;
           await selectzakaz();*/
-          //filterSearchResults(_lastCode);
-
+        //filterSearchResults(_lastCode);
       }
     });
-
-
   }
-
 
   @override
   void didChangeMetrics() {
@@ -231,8 +217,6 @@ class _brakState extends State<brak>   with WidgetsBindingObserver{
 
     _keyboardHeight = bottomInset;
   }
-
-
 
   Future<void> selectzakaz() async {
     setState(() {
@@ -368,9 +352,9 @@ WHERE
     // Создаём письмо
     final message = Message()
       ..from = Address(username, 'Клюкин Дмитрий')
-    //  ..recipients.add('k3@resursm.ru') // основной получатель
+      //  ..recipients.add('k3@resursm.ru') // основной получатель
       ..recipients.add('brakstekla@resursm.ru') // основной получатель
-    //  ..recipients.add('chauzov1995@yandex.ru') // основной получатель
+      //  ..recipients.add('chauzov1995@yandex.ru') // основной получатель
       //   ..ccRecipients.add('manager@example.com') // копия
       ..subject = 'Брак стекла — ${salon_zak}'
       ..text = '''
@@ -400,11 +384,175 @@ www.giulianovars.ru
         print('Problem: ${p.code}: ${p.msg}');
       }
     } finally {
-      setState(() => _isSending = false);
+      setState(() {
+        _isSending = false;
+        orderId = "";
+      });
     }
   }
 
+  Future<void> sendbrak() async {
+    if (kolvosel == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Не выбрано количество'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating, // плавающий стиль (по желанию)
+        ),
+      );
 
+      return;
+    }
+
+    final uri = Uri.parse('http://172.16.4.104:3000/sql');
+
+    // Получаем сегодняшнюю дату в формате ДД.ММ.ГГГГ
+    final now = DateTime.now();
+    final formattedDate = DateFormat('dd.MM.yyyy').format(now);
+
+    final requestBody3 = {
+      "nik": tehhclass.user_nik,
+      "pass": tehhclass.user_pass,
+      "sql": """
+     SELECT FIRST 1 ID FROM MAGAZINEZAM 
+WHERE 
+  MAGAZINEID = ? AND 
+  PRIM = ? AND 
+  DATEINSERT = ?;
+    """,
+      "params": [orderId, "Брак стекла", formattedDate]
+    };
+    int? insertedId = null;
+    final response3 = await http.post(
+      uri,
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(requestBody3),
+    );
+
+    if (response3.statusCode == 200) {
+      final jsonResponse = json.decode(response3.body);
+      print(jsonResponse);
+      if (jsonResponse is List && jsonResponse.isNotEmpty) {
+        insertedId = jsonResponse[0]["ID"];
+        print("Найден ID: $insertedId");
+      } else {
+        print("ID не найден — ответ пустой или не содержит нужных данных");
+      }
+    } else {
+      print('Ошибка сервера: ${response3.statusCode}');
+      print(response3.body);
+      return;
+    }
+
+    //  return;
+
+    if (insertedId == null) {
+      final requestBody2 = {
+        "nik": tehhclass.user_nik,
+        "pass": tehhclass.user_pass,
+        "sql": """
+      INSERT INTO MAGAZINEZAM (
+        MAGAZINEID, USERGROUPID, USERID, MPRETENTYPEID, FINDUSERID,
+        PRIM, DATEINSERT, MOPERID, INSERTUSER, FLAGOK, BRAKFLAG, MERA
+      )
+      VALUES (    
+        ?,       -- MAGAZINEID
+        13,          -- USERGROUPID
+        58,          -- USERID
+        162,         -- MPRETENTYPEID
+        328,         -- FINDUSERID
+        ?,           -- PRIM
+        ?,           -- DATEINSERT
+        345,         -- MOPERID
+        75,          -- INSERTUSER
+        0,           -- FLAGOK
+        0,           -- BRAKFLAG
+        205          -- MERA
+      ) RETURNING ID;
+    """,
+        "params": [orderId, "Брак стекла", formattedDate]
+      };
+
+      final response2 = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: json.encode(requestBody2),
+      );
+
+      if (response2.statusCode == 200) {
+        final jsonResponse = json.decode(response2.body);
+
+        insertedId = jsonResponse["ID"];
+        print("Вставлен ID: $insertedId");
+      } else {
+        print('Ошибка сервера: ${response2.statusCode}');
+        print(response2.body);
+        return;
+      }
+    }
+
+    print(_commentController.text);
+    print("kolvosel $kolvosel");
+    final requestBody = {
+      "nik": tehhclass.user_nik,
+      "pass": tehhclass.user_pass,
+      "sql": """
+     INSERT INTO MAGAZINEWOTDELKAZAM (    
+    MAGAZINEID,    
+    MAGAZINEZAMID,
+    MCUSTOMID,
+    KOLVO,
+	PRIM
+)
+VALUES (    
+    ?,          -- MAGAZINEID    
+    ?,            -- MAGAZINEZAMID (ссылка на ранее вставленную запись)
+      (
+        SELECT FIRST 1 ID 
+        FROM MCUSTOM 
+        WHERE CustomID = ? AND Art_Material = ?
+    ),           -- MPCUSTOMID (ID из таблицы MCUSTOM)
+    ?,            -- KOLVO
+	?            -- PRIM
+);
+    """,
+      "params": [
+        orderId,
+        insertedId,
+        orderId,
+        articul,
+        kolvosel,
+        _commentController.text
+      ]
+    };
+
+    final response = await http.post(
+      uri,
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(requestBody),
+    );
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'Успешно отправлено',
+          style: TextStyle(color: Colors.white), // Белый текст
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ));
+
+      setState(() {
+        _commentController.text = "";
+        articul = '';
+      });
+
+      print("Всё ок");
+    } else {
+      print('Ошибка сервера: ${response.statusCode}');
+      print(response.body);
+    }
+  }
 
   void _insertTextAtCursor(String text) {
     // Устанавливаем фокус
@@ -464,7 +612,7 @@ www.giulianovars.ru
               ? Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Text("Отсканируй QR-код"),
-                  orderId == ""
+                  orderId == "" || true //закоментил отправку
                       ? Container()
                       : Column(
                           children: [
@@ -537,186 +685,22 @@ www.giulianovars.ru
                             ],
                           )),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 5),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Примечание о браке:'),
                         ElevatedButton.icon(
                           onPressed: () async {
-                            if (kolvosel == 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Не выбрано количество'),
-                                  duration: Duration(seconds: 2),
-                                  behavior: SnackBarBehavior
-                                      .floating, // плавающий стиль (по желанию)
-                                ),
-                              );
+                            await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => camera_screen_sklad(
+                                          name: orderId,
+                                          cameras: widget.cameras,
+                                          brak: true,
+                                          iddetal: articul,
+                                        )));
 
-                              return;
-                            }
-
-                            final uri =
-                                Uri.parse('http://172.16.4.104:3000/sql');
-
-                            // Получаем сегодняшнюю дату в формате ДД.ММ.ГГГГ
-                            final now = DateTime.now();
-                            final formattedDate =
-                                DateFormat('dd.MM.yyyy').format(now);
-
-                            final requestBody3 = {
-                              "nik": tehhclass.user_nik,
-                              "pass": tehhclass.user_pass,
-                              "sql": """
-     SELECT FIRST 1 ID FROM MAGAZINEZAM 
-WHERE 
-  MAGAZINEID = ? AND 
-  PRIM = ? AND 
-  DATEINSERT = ?;
-    """,
-                              "params": [orderId, "Брак стекла", formattedDate]
-                            };
-                            int? insertedId = null;
-                            final response3 = await http.post(
-                              uri,
-                              headers: {"Content-Type": "application/json"},
-                              body: json.encode(requestBody3),
-                            );
-
-                            if (response3.statusCode == 200) {
-                              final jsonResponse = json.decode(response3.body);
-                              print(jsonResponse);
-                              if (jsonResponse is List &&
-                                  jsonResponse.isNotEmpty) {
-                                insertedId = jsonResponse[0]["ID"];
-                                print("Найден ID: $insertedId");
-                              } else {
-                                print(
-                                    "ID не найден — ответ пустой или не содержит нужных данных");
-                              }
-                            } else {
-                              print('Ошибка сервера: ${response3.statusCode}');
-                              print(response3.body);
-                              return;
-                            }
-
-                            //  return;
-
-                            if (insertedId == null) {
-                              final requestBody2 = {
-                                "nik": tehhclass.user_nik,
-                                "pass": tehhclass.user_pass,
-                                "sql": """
-      INSERT INTO MAGAZINEZAM (
-        MAGAZINEID, USERGROUPID, USERID, MPRETENTYPEID, FINDUSERID,
-        PRIM, DATEINSERT, MOPERID, INSERTUSER, FLAGOK, BRAKFLAG, MERA
-      )
-      VALUES (    
-        ?,       -- MAGAZINEID
-        13,          -- USERGROUPID
-        58,          -- USERID
-        162,         -- MPRETENTYPEID
-        328,         -- FINDUSERID
-        ?,           -- PRIM
-        ?,           -- DATEINSERT
-        345,         -- MOPERID
-        75,          -- INSERTUSER
-        0,           -- FLAGOK
-        0,           -- BRAKFLAG
-        205          -- MERA
-      ) RETURNING ID;
-    """,
-                                "params": [
-                                  orderId,
-                                  "Брак стекла",
-                                  formattedDate
-                                ]
-                              };
-
-                              final response2 = await http.post(
-                                uri,
-                                headers: {"Content-Type": "application/json"},
-                                body: json.encode(requestBody2),
-                              );
-
-                              if (response2.statusCode == 200) {
-                                final jsonResponse =
-                                    json.decode(response2.body);
-
-                                insertedId = jsonResponse["ID"];
-                                print("Вставлен ID: $insertedId");
-                              } else {
-                                print(
-                                    'Ошибка сервера: ${response2.statusCode}');
-                                print(response2.body);
-                                return;
-                              }
-                            }
-
-                            print(_commentController.text);
-                            print("kolvosel $kolvosel");
-                            final requestBody = {
-                              "nik": tehhclass.user_nik,
-                              "pass": tehhclass.user_pass,
-                              "sql": """
-     INSERT INTO MAGAZINEWOTDELKAZAM (    
-    MAGAZINEID,    
-    MAGAZINEZAMID,
-    MCUSTOMID,
-    KOLVO,
-	PRIM
-)
-VALUES (    
-    ?,          -- MAGAZINEID    
-    ?,            -- MAGAZINEZAMID (ссылка на ранее вставленную запись)
-      (
-        SELECT FIRST 1 ID 
-        FROM MCUSTOM 
-        WHERE CustomID = ? AND Art_Material = ?
-    ),           -- MPCUSTOMID (ID из таблицы MCUSTOM)
-    ?,            -- KOLVO
-	?            -- PRIM
-);
-    """,
-                              "params": [
-                                orderId,
-                                insertedId,
-                                orderId,
-                                articul,
-                                kolvosel,
-                                _commentController.text
-                              ]
-                            };
-
-                            final response = await http.post(
-                              uri,
-                              headers: {"Content-Type": "application/json"},
-                              body: json.encode(requestBody),
-                            );
-
-                            if (response.statusCode == 200) {
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(SnackBar(
-                                content: Text(
-                                  'Успешно отправлено',
-                                  style: TextStyle(
-                                      color: Colors.white), // Белый текст
-                                ),
-                                backgroundColor: Colors.green,
-                                behavior: SnackBarBehavior.floating,
-                              ));
-
-                              setState(() {
-                                _commentController.text = "";
-                                articul = '';
-                              });
-
-                              print("Всё ок");
-                            } else {
-                              print('Ошибка сервера: ${response.statusCode}');
-                              print(response.body);
-                            }
+                            selectzakaz();
                           },
 
                           style: ElevatedButton.styleFrom(
@@ -734,26 +718,30 @@ VALUES (
                           label: Row(
                             children: const [
                               Text(
-                                'Отправить',
+                                'Добавить фото',
                                 style: TextStyle(color: Colors.white),
                               ),
                               SizedBox(width: 8),
-                              Icon(Icons.send, color: Colors.white),
+                              Icon(Icons.photo_camera_rounded,
+                                  color: Colors.white),
                             ],
                           ),
-                        ),
+                        )
                       ],
+                    ),
+                    SizedBox(
+                      height: 7,
                     ),
                     TextField(
                       controller: _commentController,
                       focusNode: tehhclass.myFocusNode3,
-                      maxLines: 3,
+                      maxLines: 2,
                       // textInputAction: TextInputAction.send,
                       // 👈 это покажет кнопку "Отправить"
 
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        hintText: 'Опишите проблему...',
+                        hintText: 'Примечание о браке',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -785,7 +773,7 @@ VALUES (
                     ),
                     const SizedBox(height: 16),
                     // const Text('Фото:'),
-                  Container(
+                    Container(
                       padding: EdgeInsets.only(left: 5, right: 5, top: 5),
                       // color: Colors.amber,
                       child: GridView(
@@ -842,20 +830,8 @@ VALUES (
                 ),
                 FloatingActionButton(
                   heroTag: "btn2",
-                  child: Icon(Icons.photo_camera_rounded),
-                  onPressed: () async {
-                    await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => camera_screen_sklad(
-                                  name: orderId,
-                                  cameras: widget.cameras,
-                                  brak: true,
-                                  iddetal: articul,
-                                )));
-
-                    selectzakaz();
-                  },
+                  child: Icon(Icons.send),
+                  onPressed: sendbrak,
                 )
               ]));
   }

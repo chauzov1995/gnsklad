@@ -43,7 +43,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           IconButton(
             icon: const Icon(
               Icons.delete_forever,
-              color: Colors.white,
+              //color: Colors.black,
             ),
             onPressed: () {
 
