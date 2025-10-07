@@ -35,19 +35,17 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   }
 
   late List spis;
- Map spiss={};
-  firstinit() async {
+  Map spiss = {};
 
+  firstinit() async {
     var response = await http.get(Uri.parse(
         'http://172.16.4.104:3000/getalltars?nik=${tehhclass.user_nik}&pass=${tehhclass.user_pass}'));
 
+    spis = json.decode(response.body);
 
-     spis = json.decode(response.body);
-
-     for(var asdas in spis){
-       spiss.addAll({asdas['ID']: asdas['NAME']});
+    for (var asdas in spis) {
+      spiss.addAll({asdas['ID']: asdas['NAME']});
     }
-
 
     _controller = AnimationController(
       vsync: this, // the SingleTickerProviderStateMixin
@@ -69,11 +67,10 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
   int statuss = 0;
 
   void initScanner2() {
-
     //для новых сканеров
     tehhclass.receiver.messages.listen((BroadcastMessage? object) {
 
-      if(tehhclass.selectedIndex==2) {
+      if (tehhclass.selectedIndex == 2) {
         print("asdasdasdasdsad");
         if (object != null) {
           setState(() {
@@ -83,8 +80,8 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
             if (object.data!.containsKey('scandata')) {
               _lastCode = object.data!['scandata'];
             }
-            if(object.data!.containsKey('SCAN_BARCODE1')){
-              _lastCode=object.data!['SCAN_BARCODE1'];
+            if (object.data!.containsKey('SCAN_BARCODE1')) {
+              _lastCode = object.data!['SCAN_BARCODE1'];
             }
             print("initScanner3");
             print(_lastCode);
@@ -96,70 +93,76 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
           });
         }
       }
-
     });
-
 
     //для зебры
 
     StreamSubscription onScanSubscription =
-  tehhclass.  dw.onScanResult.listen((ScanResult result) {
-    if(tehhclass.selectedIndex==2) {
-      setState(() {
-        _lastCode = result.data;
-        print("initScanner3");
-        print(_lastCode);
-        // editingController.text = _lastCode;
-        if (statuss == 1) {
-          statuss = 2;
-        }
-        findtara(int.parse(_lastCode));
-      });
-    }
+        tehhclass.dw.onScanResult.listen((ScanResult result) {
+      if (tehhclass.selectedIndex == 2) {
+        setState(() {
+          _lastCode = result.data;
+          print("initScanner3");
+          print(_lastCode);
+          // editingController.text = _lastCode;
+          if (statuss == 1) {
+            statuss = 2;
+          }
+          findtara(int.parse(_lastCode));
+        });
+      }
     });
 
     StreamSubscription onScanSubscription2 =
-    tehhclass.dw.onScannerStatus.listen((ScannerStatus result) {
-      if(tehhclass.selectedIndex==2){
-      ScannerStatusType status = result.status;
-      setState(() {
-        print(status.index);
-        _scannerStatus = status.index;
+        tehhclass.dw.onScannerStatus.listen((ScannerStatus result) {
+      if (tehhclass.selectedIndex == 2) {
+        ScannerStatusType status = result.status;
+        setState(() {
+          print(status.index);
+          _scannerStatus = status.index;
 
-        if (_scannerStatus == 1) {
-          statuss = 1;
-        } else if (_scannerStatus == 0 && statuss == 1) {
-          if (countasdasd == '') {
-            statuss = 0;
-          } else {
-            statuss = 3;
+          if (_scannerStatus == 1) {
+            statuss = 1;
+          } else if (_scannerStatus == 0 && statuss == 1) {
+            if (countasdasd == '') {
+              statuss = 0;
+            } else {
+              statuss = 3;
+            }
           }
-        }
-      });
-    }
+        });
+      }
     });
-
   }
-
+bool flag_vibral_det_v_taru=false;
   void findtara(int sh_curr) async {
     // int sh_curr = 1530000101;
     // int sh_curr = 12519856;
-    if ((sh_curr > 1500000000) && (sh_curr < 1600000000)) {
+    if ((sh_curr > 1500000000) && (sh_curr < 1600000000)) {//если тара
       setState(() {
         countasdasd = '';
         zakazid = '';
         nakleyka = '';
       });
       res_DetalKode = sh_curr - 1500000000;
-if(spiss[res_DetalKode]==null){
-  countasdasd="нет тары";
-}else {
-  countasdasd = "${spiss[res_DetalKode]}";
-}
+      if (spiss[res_DetalKode] == null) {
+        countasdasd = "нет тары";
+      } else {
+        countasdasd = "${spiss[res_DetalKode]}";
+      }
       statuss = 3;
+      flag_vibral_det_v_taru=false;
       setState(() {});
-    } else if ((sh_curr > 12000000) && (sh_curr < 99000000)) {
-      if (countasdasd == '' || countasdasd=="нет тары") return;
+    } else if ((sh_curr > 12000000) && (sh_curr < 99000000)) {// если деталь
+      if(flag_vibral_det_v_taru){
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Сначала снова отсканируй тару')),
+        );
+        return;
+
+      }
+      if (countasdasd == '' || countasdasd == "нет тары") return;
       setState(() {
         zakazid = '';
         nakleyka = '';
@@ -167,14 +170,14 @@ if(spiss[res_DetalKode]==null){
 
       int idmagazupak = sh_curr - 12000000;
       var response = await http.get(Uri.parse(
-          'http://172.16.4.104:3000/setmtara?id=${idmagazupak}&mtaraid=${res_DetalKode}&nik=${tehhclass
-              .user_nik}&pass=${tehhclass.user_pass}'));
+          'http://172.16.4.104:3000/setmtara?id=${idmagazupak}&mtaraid=${res_DetalKode}&nik=${tehhclass.user_nik}&pass=${tehhclass.user_pass}'));
       var otvet = json.decode(response.body);
       zakazid = otvet[0]['MAGAZINE_ID'].toString();
       nakleyka = otvet[0]['CONCATENATION'].toString();
       _controller.reset();
       _controller.forward();
       statuss = 3;
+      flag_vibral_det_v_taru=true;
       setState(() {});
       print(otvet);
     }
@@ -192,55 +195,56 @@ if(spiss[res_DetalKode]==null){
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-        appBar:   AppBar(
-        title: Text("Тары"),
-    ),
-    body:  Center(
-        child: statuss == 0
-            ? Text("Отсканируй штрихкод тары")
-            : statuss != 3
-            ? Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            Text("Сканирую...")
-          ],
-        )
-            : AnimatedContainer(
-            color: zakazid == '' ? Colors.transparent : animation.value,
-            width: double.infinity,
-            duration: Duration(milliseconds: 4),
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    countasdasd,
-                    style: TextStyle(fontSize: 68),
-                  ),
-                  countasdasd == '' || zakazid == ""
-                      ? Container()
-                      : Column(
-                    children: [
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Text(
-                        "Заказ",
-                        style: TextStyle(fontSize: 24),
-                      ),
-                      Text(
-                        "${zakazid}",
-                        style: TextStyle(fontSize: 36),
-                      ),
-                      Text(
-                        "${nakleyka}",
-                        style: TextStyle(
-                            fontSize: 106,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  )
-                ]))));
+        appBar: AppBar(
+          title: Text("Тары"),
+        ),
+        body: Center(
+            child: statuss == 0
+                ? Text("Отсканируй штрихкод тары")
+                : statuss != 3
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          Text("Сканирую...")
+                        ],
+                      )
+                    : AnimatedContainer(
+                        color: zakazid == ''
+                            ? Colors.transparent
+                            : animation.value,
+                        width: double.infinity,
+                        duration: Duration(milliseconds: 4),
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                countasdasd,
+                                style: TextStyle(fontSize: 68),
+                              ),
+                              countasdasd == '' || zakazid == ""
+                                  ? Container()
+                                  : Column(
+                                      children: [
+                                        SizedBox(
+                                          height: 10,
+                                        ),
+                                        Text(
+                                          "Заказ",
+                                          style: TextStyle(fontSize: 24),
+                                        ),
+                                        Text(
+                                          "${zakazid}",
+                                          style: TextStyle(fontSize: 36),
+                                        ),
+                                        Text(
+                                          "${nakleyka}",
+                                          style: TextStyle(
+                                              fontSize: 106,
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    )
+                            ]))));
   }
 }

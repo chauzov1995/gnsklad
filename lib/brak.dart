@@ -493,6 +493,7 @@ WHERE
 
     print(_commentController.text);
     print("kolvosel $kolvosel");
+    final formattedDate2 = DateFormat('dd.MM').format(now);
     final requestBody = {
       "nik": tehhclass.user_nik,
       "pass": tehhclass.user_pass,
@@ -522,7 +523,8 @@ VALUES (
         orderId,
         articul,
         kolvosel,
-        _commentController.text
+        _commentController.text.trim(),
+
       ]
     };
 
@@ -532,7 +534,34 @@ VALUES (
       body: json.encode(requestBody),
     );
 
-    if (response.statusCode == 200) {
+
+
+    final requestBody2 = {
+      "nik": tehhclass.user_nik,
+      "pass": tehhclass.user_pass,
+      "sql": """
+    UPDATE MCUSTOM
+SET PRIM = 
+    COALESCE(PRIM, '') || 
+    CASE WHEN COALESCE(PRIM, '') <> '' THEN ' ' ELSE '' END ||
+    ?
+WHERE CustomID = ? AND Art_Material = ?;
+    """,
+      "params": [
+
+        "${_commentController.text.trim()} (${formattedDate2})",
+        orderId,
+        articul,
+      ]
+    };
+
+    final response2 = await http.post(
+      uri,
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(requestBody2),
+    );
+
+    if (response.statusCode == 200 && response2.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
           'Успешно отправлено',
