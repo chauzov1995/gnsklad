@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
 import 'package:http/http.dart' as http;
 import 'package:gnsklad/tehhclass.dart';
+import 'package:vibration/vibration.dart';
+import 'package:vibration/vibration_presets.dart';
+
+import 'package:volume_controller/volume_controller.dart';
 
 // Define a custom Form widget.
 class tars extends StatefulWidget {
@@ -25,6 +30,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
 
   late Animation<Color?> animation;
   late AnimationController _controller;
+
 
   @override
   void initState() {
@@ -59,6 +65,7 @@ class _tarsState extends State<tars> with SingleTickerProviderStateMixin {
           // The state that has changed here is the animation object’s value.
         });
       });
+
     initScanner2();
   }
 
@@ -155,10 +162,24 @@ bool flag_vibral_det_v_taru=false;
       setState(() {});
     } else if ((sh_curr > 12000000) && (sh_curr < 99000000)) {// если деталь
       if(flag_vibral_det_v_taru){
+        statuss = 3;
 
+        setState(() {});
+        playErrorSound();
+        _controller.reset();
+        _controller.forward();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Сначала снова отсканируй тару')),
+          const SnackBar(
+            content: Text(
+              'Сначала снова отсканируй тару',
+              style: TextStyle(color: Colors.white), // белый текст
+            ),
+            backgroundColor: Colors.red, // красный фон
+            behavior: SnackBarBehavior.floating, // можно добавить чтобы "висел" над контентом
+            duration: Duration(seconds: 2),
+          ),
         );
+
         return;
 
       }
@@ -183,9 +204,32 @@ bool flag_vibral_det_v_taru=false;
     }
   }
 
+  final _audioPlayer = AudioPlayer();
+
+  Future<void> playErrorSound() async {
+    try {
+      VolumeController.instance.showSystemUI = false;
+  //    double volume = await VolumeController.instance.getVolume();
+      await VolumeController.instance.setVolume(1);
+
+
+      Vibration.vibrate(preset: VibrationPreset.doubleBuzz);
+
+
+      await _audioPlayer.play(AssetSource('sounds/error-126627.mp3'));
+
+   //   await VolumeController.instance.setVolume(volume);
+
+    } catch (e) {
+      print('Ошибка воспроизведения звука: $e');
+    }
+  }
+
+
   @override
   void dispose() {
     _controller.dispose();
+
 
     super.dispose();
   }
