@@ -28,23 +28,15 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
 
   Future<void> getspisoperac() async {
     final uri = Uri.parse('http://172.16.4.104:3000/sql');
-print("usersdasd");
-print(tehhclass.user_id);
+    print("usersdasd");
+    print(tehhclass.user_id);
     final requestBody = {
       "nik": tehhclass.user_nik,
       "pass": tehhclass.user_pass,
       "sql": """
-select distinct
-  MOW.MOPER_ID
-from
-  MUserWork UW
-  join WORKPLACES MW on MW.ID = UW.MWORKPLACES_ID
-  join MOPER_WORKPLACES MOW on MOW.WORKPLACES_ID = MW.ID
-where
-  UW.Users_ID = ?
-
+select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where OW.WORKPLACES_ID=UW.MWORKPLACES_ID and UW.USERS_ID=? and O.ID=OW.MOPER_ID
     """,
-      "params": [ tehhclass.user_id]
+      "params": [tehhclass.user_id]
     };
 
     final response = await http.post(
@@ -54,17 +46,28 @@ where
     );
 
     if (response.statusCode == 200) {
-      batches = json.decode(response.body);
-      print('Ответ от сервера: $batches');
+      operations = json.decode(response.body);
+      print('Ответ от сервера: $operations');
 
       //  var otvet = data[0];
       //  name = otvet['NAMEF'];
       //  kolvo = otvet['KOLVO_S'];
-      setState(() {
-
-      });
+      setState(() {});
     } else {
       print('Ошибка сервера: ${response.statusCode}');
+    }
+
+    final List<Map<String, dynamic>> result = await tehhclass.database.rawQuery(
+      'SELECT defoperac FROM Users WHERE id = ?',
+      [tehhclass.user_id],
+    );
+
+    if (result.isNotEmpty) {
+      final int defoperac = result.first['defoperac'] as int;
+      print('defoperac = $defoperac');
+      selectedOperation =
+          defoperac == 0 ? operations[0]['MOPER_ID'] : defoperac;
+      setState(() {});
     }
   }
 
@@ -76,16 +79,11 @@ where
   final TextEditingController _orderController = TextEditingController();
 
   int? selectedBatch;
-  String? selectedOperation;
+  int? selectedOperation;
 
+  List<dynamic> batches = [];
 
-   List<dynamic> batches =[];
-
-  final List<String> operations = [
-    'Рубашки',
-    'Фрезеровка',
-    'Упаковка',
-  ];
+  List<dynamic> operations = [];
 
   void _onScanQr() {
     // TODO: реализовать сканер QR
@@ -157,7 +155,7 @@ where
 from
  MPARTSGROUPS MP
 where
- MAGAZINE_ID=? and MP.Texproc_Group_ID=?
+ MAGAZINE_ID=? and MP.Texproc_Group_ID=? order By FLAG_END
     """,
                           "params": [value, 2]
                         };
@@ -172,12 +170,10 @@ where
                           batches = json.decode(response.body);
                           print('Ответ от сервера: $batches');
 
-                        //  var otvet = data[0];
+                          //  var otvet = data[0];
                           //  name = otvet['NAMEF'];
                           //  kolvo = otvet['KOLVO_S'];
-                          setState(() {
-
-                          });
+                          setState(() {});
                         } else {
                           print('Ошибка сервера: ${response.statusCode}');
                         }
@@ -203,21 +199,78 @@ where
               child:
                   // Список партий
                   ListView.builder(
+
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+
             itemCount: batches.length,
             itemBuilder: (context, index) {
               final batch = batches[index];
               return RadioListTile<int>(
-                title: Text(batch['NAME']),
-                value: batch['ID'],
+                title: batch['FLAG_END'] == 1
+                    ? Row(
+                  children: [
+                    Text(batch['NAME']),
+                    const SizedBox(width: 10),
+                    const Text(
+                      "завершена",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                )
+                    : Text(batch['NAME']),
+                value: batch['ID'] as int,
                 groupValue: selectedBatch,
-                onChanged: (val) {
+                onChanged: batch['FLAG_END'] == 1
+                    ? null // отключаем выбор
+                    : (val) async {
                   setState(() {
                     selectedBatch = val;
                   });
+
+
+                  final uri = Uri.parse('http://172.16.4.104:3000/sql');
+
+                  final requestBody = {
+                    "nik": tehhclass.user_nik,
+                    "pass": tehhclass.user_pass,
+                    "sql": """
+  select
+ M.ID, M.MAGAZINEID, M.MAGAZINETEXPROCID, M.MOPERID,   M.MPARTSGROUPS_ID, M.MTEXPROCID,
+ M.NN, M.OPERTIME,   M.DateBegin,M.DateEnd,  M.Current_Flag,
+ M.UserId1, M.UserId2,  M.Prim
+from
+ MAGAZINETEXOPER M
+where
+ M.MPARTSGROUPS_ID=? AND MOPERID=?
+order by
+ MPARTSGROUPS_ID
+    """,
+                    "params": [batch['ID'], selectedOperation]
+                  };
+
+                  final response = await http.post(
+                    uri,
+                    headers: {"Content-Type": "application/json"},
+                    body: json.encode(requestBody),
+                  );
+
+                  if (response.statusCode == 200) {
+                    var asdasdasd = json.decode(response.body);
+                    print('Ответ от сервера: $asdasdasd');
+                    isAllowed=asdasdasd.length>0;
+                    //  var otvet = data[0];
+                    //  name = otvet['NAMEF'];
+                    //  kolvo = otvet['KOLVO_S'];
+                    setState(() {});
+                  } else {
+                    print('Ошибка сервера: ${response.statusCode}');
+                  }
+
+
+
                 },
-              );
+              )
+              ;
             },
           )),
 
@@ -226,24 +279,33 @@ where
               padding: EdgeInsets.all(10),
               child:
                   // Список операций (заменили на ComboBox)
-                  DropdownButtonFormField<String>(
+                  DropdownButtonFormField<int>(
                 decoration: InputDecoration(
-                  labelText: 'Выбери операцию',
+                  labelText: 'Я выполняю операцию',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 value: selectedOperation,
                 items: operations.map((op) {
-                  return DropdownMenuItem<String>(
-                    value: op,
-                    child: Text(op),
+                  return DropdownMenuItem<int>(
+                    value: op['MOPER_ID'],
+                    child: Text(op['NAME']),
                   );
                 }).toList(),
-                onChanged: (val) {
+                onChanged: (val) async {
                   setState(() {
                     selectedOperation = val;
                   });
+
+                  await tehhclass.database.rawUpdate(
+                    '''
+  UPDATE Users
+  SET defoperac = ?
+  WHERE id = ?
+  ''',
+                    [val, tehhclass.user_id],
+                  );
                 },
               )),
 
