@@ -107,7 +107,7 @@ class _fotoskladState extends State<fotosklad> {
             _lastCode = result.data;
             print("initScanner2");
             print(_lastCode);
-            editingController.text = tehhclass.myFocusNode2.hasFocus?"":_lastCode;
+            editingController.text = _lastCode;
             selectedzakaz = _lastCode;
             await selectzakaz();
             setState(()  {
@@ -148,7 +148,7 @@ class _fotoskladState extends State<fotosklad> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
-                  focusNode:tehhclass.myFocusNode2,
+                // focusNode:tehhclass.myFocusNode2,
                   keyboardType: TextInputType.number,
                   inputFormatters: <TextInputFormatter>[
                     FilteringTextInputFormatter.digitsOnly
@@ -169,7 +169,7 @@ class _fotoskladState extends State<fotosklad> {
                             const Icon(Icons.clear_sharp, color: Colors.black),
                         onPressed: () async {
                           editingController.clear();
-                          tehhclass.myFocusNode2.requestFocus();
+                         // tehhclass.myFocusNode2.requestFocus();
                           selectedzakaz = null;
                           await selectzakaz();
 

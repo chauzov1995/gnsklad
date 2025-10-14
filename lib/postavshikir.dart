@@ -115,8 +115,7 @@ print(object);
           _lastCode = result.data;
           print("initScanner1");
           print(_lastCode);
-          editingController.text =
-              tehhclass.myFocusNode1.hasFocus ? "" : _lastCode;
+          editingController.text =          _lastCode;
           filterSearchResults(_lastCode);
         });
       }
@@ -185,7 +184,7 @@ print(object);
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: TextField(
-            focusNode: tehhclass.myFocusNode1,
+          //  focusNode: tehhclass.myFocusNode1,
             onChanged: (value) {
               filterSearchResults(value);
             },
@@ -198,7 +197,7 @@ print(object);
                   icon: const Icon(Icons.clear_sharp, color: Colors.black),
                   onPressed: () {
                     editingController.clear();
-                    tehhclass.myFocusNode1.requestFocus();
+                   // tehhclass.myFocusNode1.requestFocus();
                     filterSearchResults("");
                   },
                 ),

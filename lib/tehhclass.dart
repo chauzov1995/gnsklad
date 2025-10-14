@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
@@ -6,12 +7,12 @@ import 'package:sqflite/sqlite_api.dart';
 
 class tehhclass {
   static String user_nik='';
+  static int user_id=0;
   static String user_pass='';
   static late Database database;
   static int selectedIndex = 0;
-  static FocusNode myFocusNode1 = FocusNode();
-  static FocusNode myFocusNode2 = FocusNode();
-  static FocusNode myFocusNode3 = FocusNode();
+
+  static final _audioPlayer = AudioPlayer();
 
 
   static FlutterDataWedge dw = FlutterDataWedge();
@@ -51,6 +52,10 @@ print("asdasdasdasdasdasdasdasd");
     }
 
     return database;
+  }
+
+  static Future<void> say(String s) async {
+    await _audioPlayer.play(AssetSource('sounds/woman/cells/${s}.mp3'));
   }
 
 

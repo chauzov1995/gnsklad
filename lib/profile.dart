@@ -1,7 +1,10 @@
 import 'dart:convert';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gnsklad/OrderOperationPage.dart';
+
 import 'package:gnsklad/tehhclass.dart';
 import 'package:http/http.dart' as http;
 
@@ -80,6 +83,7 @@ class _profileState extends State<profile> {
                     'insert into Users(ID, NIK, USERGROUP, FIO, MUSERGROUPID, USERPASSWORD) VALUES (${otvet['ID']}, "${otvet['NIK']}", ${otvet['USERGROUP']}, "${otvet['FIO']}", ${otvet['MUSERGROUPID']}, "${otvet['USERPASSWORD']}" ) ');
 
                 tehhclass.user_nik=otvet['NIK'];
+                tehhclass.user_id=otvet['ID'];
                 tehhclass.user_pass=otvet['USERPASSWORD'];
                 setState(() {
 
@@ -93,10 +97,46 @@ class _profileState extends State<profile> {
       )
           :Container(
         child: Column(children: [
+
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          //  icon: const Icon(Icons.record_voice_over, size: 28),
+            label: const Text('Операции', style: TextStyle(fontSize: 18)),
+            onPressed: () async {
+
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => OrderOperationPage()));
+
+            },
+          ),
+
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.record_voice_over, size: 28),
+            label: const Text('Сказать 1349', style: TextStyle(fontSize: 18)),
+            onPressed: () async {
+
+           tehhclass.say("1349");
+         //    await _audioPlayer.play(AssetSource('sounds/woman/cells/2.mp3'));
+
+
+            },
+          ),
+
+
           ListTile(title: Text(tehhclass.user_nik),),
           TextButton(onPressed: (){
             tehhclass.database.rawDelete(
                 'DELETE FROM Users');
+            tehhclass.user_id=0;
             tehhclass.user_nik='';
             tehhclass.user_pass='';
             setState(() {

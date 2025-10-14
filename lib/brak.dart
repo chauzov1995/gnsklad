@@ -585,7 +585,7 @@ WHERE CustomID = ? AND Art_Material = ?;
 
   void _insertTextAtCursor(String text) {
     // Устанавливаем фокус
-    tehhclass.myFocusNode3.requestFocus();
+
 
     final textValue = _commentController.text;
     final selection = _commentController.selection;
@@ -763,7 +763,7 @@ WHERE CustomID = ? AND Art_Material = ?;
                     ),
                     TextField(
                       controller: _commentController,
-                      focusNode: tehhclass.myFocusNode3,
+                   //   focusNode: tehhclass.myFocusNode3,
                       maxLines: 2,
                       // textInputAction: TextInputAction.send,
                       // 👈 это покажет кнопку "Отправить"
