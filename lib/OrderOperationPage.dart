@@ -23,7 +23,7 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
   }
 
   void firstload() {
-    _orderController.text = "115874"; //закоменти
+  //  _orderController.text = "115874"; //закоменти
     getspisoperac();
   }
 
@@ -74,6 +74,7 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
 
   @override
   void dispose() {
+    _orderController.dispose();
     super.dispose();
   }
 
@@ -110,8 +111,6 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
       return;
     }
 
-
-
     final uri = Uri.parse('http://172.16.4.104:3000/sql');
 
     final requestBody = {
@@ -144,10 +143,6 @@ order by
       print(asdasdasd[0]['ID'].toString());
 
       if (asdasdasd.length > 0) {
-
-
-
-
         final uri = Uri.parse('http://172.16.4.104:3000/sqltran');
 
         final requestBody = {
@@ -155,11 +150,13 @@ order by
           "pass": tehhclass.user_pass,
           "queries": [
             {
-              "sql": "update MagazineTexOper set DateBegin=Current_TimeStamp, USERID1=? where ID=? and DateBegin is Null",
+              "sql":
+                  "update MagazineTexOper set DateBegin=Current_TimeStamp, USERID1=? where ID=? and DateBegin is Null",
               "params": [tehhclass.user_id, asdasdasd[0]['ID']]
             },
             {
-              "sql": "update MagazineTexOper set DateEnd=Current_TimeStamp, USERID1=? where ID=? and DateEnd is Null",
+              "sql":
+                  "update MagazineTexOper set DateEnd=Current_TimeStamp, USERID1=? where ID=? and DateEnd is Null",
               "params": [tehhclass.user_id, asdasdasd[0]['ID']]
             },
           ]
@@ -174,7 +171,6 @@ order by
         if (response.statusCode == 200) {
           print("Транзакция выполнена успешно");
 
-
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -186,23 +182,14 @@ order by
               duration: const Duration(seconds: 3),
             ),
           );
-
-
         } else {
           print("Ошибка: ${response.body}");
         }
 
-
-
-
-        print("update MagazineTexOper set DateBegin=Current_TimeStamp, USERID1=:UserID1, where ID=:MagazineTexOper_ID and DateBegin is Null");
-        print("update MagazineTexOper set DateEnd=Current_TimeStamp, USERID1=:UserID1, where ID=:MagazineTexOper_ID and DateEnd is Null");
-
-
-
-
-
-
+        print(
+            "update MagazineTexOper set DateBegin=Current_TimeStamp, USERID1=:UserID1, where ID=:MagazineTexOper_ID and DateBegin is Null");
+        print(
+            "update MagazineTexOper set DateEnd=Current_TimeStamp, USERID1=:UserID1, where ID=:MagazineTexOper_ID and DateEnd is Null");
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -216,23 +203,21 @@ order by
           ),
         );
       }
-      setState(() {
-        selectedBatch=null;
-      });
+
       selzakaz();
-
-
     } else {
       print('Ошибка сервера: ${response.statusCode}');
     }
   }
 
-  bool isAllowed = false; // или false, в зависимости от логики
   String selectedzakaz = "";
 
-  Future<void> selzakaz() async {
-
-
+  Future<void> selzakaz({bool needbatchnull=true}) async {
+if(needbatchnull){
+    setState(() {
+      selectedBatch = null;
+    });
+    }
 
     final uri = Uri.parse('http://172.16.4.104:3000/sql');
 
@@ -262,7 +247,7 @@ order by
 from
  MPARTSGROUPS MP
 where
- MAGAZINE_ID=? and MP.Texproc_Group_ID=? order By FLAG_END 
+ MAGAZINE_ID=? and MP.Texproc_Group_ID=? and FLAG_END!=1 
     """,
       "params": [selectedzakaz, 2]
     };
@@ -288,9 +273,6 @@ where
 
       print('Ответ от сервера: $batches');
 
-      //  var otvet = data[0];
-      //  name = otvet['NAMEF'];
-      //  kolvo = otvet['KOLVO_S'];
       setState(() {});
     } else {
       print('Ошибка сервера: ${response.statusCode}');
@@ -313,20 +295,31 @@ where
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _orderController,
-                      decoration: InputDecoration(
-                        labelText: 'Номер заказа',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onSubmitted: (value) async {
-                        selectedzakaz = value;
-                        await selzakaz();
+                    child: Focus(
+                      onFocusChange: (hasFocus) {
+                        if (hasFocus) {
+                          _orderController.selection = TextSelection(
+                            baseOffset: 0,
+                            extentOffset: _orderController.text.length,
+                          );
+                        }
                       },
+                      child: TextField(
+                        controller: _orderController,
+                        decoration: InputDecoration(
+                          labelText: 'Номер заказа',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onSubmitted: (value) async {
+                          selectedzakaz = value;
+
+                          await selzakaz();
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -385,14 +378,9 @@ where
                           selectedBatch = val;
                         });
 
-                        await selzakaz();
-
-/*
+                        await selzakaz(needbatchnull: false);
 
 
-
-
-*/
                       },
               );
             },
@@ -431,6 +419,8 @@ where
   ''',
                     [val, tehhclass.user_id],
                   );
+                await  selzakaz();
+
                 },
               )),
 

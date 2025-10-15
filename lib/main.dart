@@ -162,8 +162,8 @@ class _MyHomePageState extends State<MyHomePage> {
             label: 'Брак',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Пользователь',
+            icon: Icon(Icons.menu),
+            label: 'Меню',
           )
         ],
         currentIndex: tehhclass.selectedIndex,

@@ -8,6 +8,7 @@ import 'package:sqflite/sqlite_api.dart';
 class tehhclass {
   static String user_nik='';
   static int user_id=0;
+  static String FIO="";
   static String user_pass='';
   static late Database database;
   static int selectedIndex = 0;
@@ -53,11 +54,12 @@ class tehhclass {
 
     List<Map> list =
     await database.rawQuery('SELECT * FROM Users');
-    print(list.length);
-print("asdasdasdasdasdasdasdasd");
+    print(list);
+print("Пользователь");
     if(list.length>0) {
       user_nik = list[0]['NIK'];
       user_id = list[0]['id'];
+      FIO = list[0]['FIO'];
       print(user_nik);
       user_pass = list[0]['USERPASSWORD'];
     }
