@@ -23,7 +23,7 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
   }
 
   void firstload() {
-  //  _orderController.text = "115874"; //закоменти
+    //  _orderController.text = "115874"; //закоменти
     getspisoperac();
   }
 
@@ -212,14 +212,19 @@ order by
 
   String selectedzakaz = "";
 
-  Future<void> selzakaz({bool needbatchnull=true}) async {
-if(needbatchnull){
-    setState(() {
-      selectedBatch = null;
-    });
+  Future<void> selzakaz({bool needbatchnull = true}) async {
+    if (needbatchnull) {
+      setState(() {
+        selectedBatch = null;
+      });
     }
 
+    print(operations);
+    final ids = operations.map((op) => op['MOPER_ID']).join(', ');
+    final sql = 'SELECT * FROM OPERATIONS WHERE MOPER_ID IN ($ids);';
+    print(sql);
     final uri = Uri.parse('http://172.16.4.104:3000/sql');
+
 
     final requestBody = {
       "nik": tehhclass.user_nik,
@@ -247,11 +252,19 @@ if(needbatchnull){
 from
  MPARTSGROUPS MP
 where
- MAGAZINE_ID=? and MP.Texproc_Group_ID=? and FLAG_END!=1 
+ MAGAZINE_ID=? and MP.Texproc_Group_ID=?  
+   AND ((
+        SELECT FIRST 1 M.MOPERID
+        FROM MAGAZINETEXOPER M
+        WHERE M.MPARTSGROUPS_ID = MP.ID
+          AND M.Current_Flag = 1
+        ORDER BY M.ID DESC
+    ) IN ($ids)  OR MP.FLAG_END = 1)
+ order By MP.FLAG_END 
     """,
       "params": [selectedzakaz, 2]
     };
-
+//order By FLAG_END
     final response = await http.post(
       uri,
       headers: {"Content-Type": "application/json"},
@@ -346,20 +359,7 @@ where
             itemBuilder: (context, index) {
               final batch = batches[index];
               return RadioListTile<int>(
-                title: batch['FLAG_END'] == 1
-                    ? Row(
-                        children: [
-                          Text(batch['NAME']),
-                          const SizedBox(width: 10),
-                          Text(
-                            "завершена",
-                            style: TextStyle(
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      )
-                    : batch['TEKOPER'] == selectedOperation
+                title:  batch['TEKOPER'] == selectedOperation
                         ? Text(
                             batch['NAME'],
                             style: TextStyle(
@@ -367,7 +367,9 @@ where
                                 fontWeight: FontWeight.w600),
                           )
                         : Text(batch['NAME']),
-                subtitle: Text(batch['MOPER_NAME']),
+                subtitle: batch['FLAG_END'] == 1
+                    ? Text("Завершена",style: TextStyle(color: Colors.green),)
+                    : Text(batch['MOPER_NAME']),
                 value: batch['ID'] as int,
                 groupValue: selectedBatch,
                 onChanged: batch['FLAG_END'] == 1 ||
@@ -379,8 +381,6 @@ where
                         });
 
                         await selzakaz(needbatchnull: false);
-
-
                       },
               );
             },
@@ -419,8 +419,7 @@ where
   ''',
                     [val, tehhclass.user_id],
                   );
-                await  selzakaz();
-
+                  await selzakaz();
                 },
               )),
 
