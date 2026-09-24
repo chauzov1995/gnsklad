@@ -31,6 +31,10 @@
 .pub/
 /build/
 
+# TEMPORARY GN production key; never commit.
+/lib/gn_api_key.local.dart
+/.config/gn-api/
+
 # Web related
 lib/generated_plugin_registrant.dart
 

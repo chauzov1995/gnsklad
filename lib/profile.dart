@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:gnsklad/OrderOperationPage.dart';
 
 import 'package:gnsklad/tehhclass.dart';
+import 'package:gnsklad/gn_api_config.dart';
 import 'package:http/http.dart' as http;
 
 // Define a custom Form widget.
@@ -153,8 +154,13 @@ class _profileState extends State<profile> {
                             setState(() {
                               errtext = '';
                             });
-                            var response = await http.get(Uri.parse(
-                                'http://172.16.4.104:3000/getuser?nik=${_controllert.text}'));
+                            var response = await http.get(
+                              Uri.parse(apiUrl).replace(queryParameters: {
+                                'endpoint': 'getuser',
+                                'nik': _controllert.text,
+                              }),
+                              headers: {'X-GN-Api-Key': apiKey},
+                            );
 
                             print('23223');
                             var otvets = json.decode(response.body);

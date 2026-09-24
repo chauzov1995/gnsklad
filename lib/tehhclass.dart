@@ -54,7 +54,6 @@ class tehhclass {
 
     List<Map> list =
     await database.rawQuery('SELECT * FROM Users');
-    print(list);
 print("Пользователь");
     if(list.length>0) {
       user_nik = list[0]['NIK'];

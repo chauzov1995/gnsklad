@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:gnsklad/QRScanPage.dart';
 import 'package:gnsklad/tehhclass.dart';
+import 'package:gnsklad/gn_api_config.dart';
 import 'package:http/http.dart' as http;
 
 class OrderOperationPage extends StatefulWidget {
@@ -15,10 +16,94 @@ class OrderOperationPage extends StatefulWidget {
 class _OrderOperationPageState extends State<OrderOperationPage> {
   _OrderOperationPageState();
 
+  static const double _weekItemWidth = 112;
+  late final int _productionYear;
+  late final int _firstProductionWeek;
+  late final int _lastProductionWeek;
+  late final ScrollController _weekScrollController;
+  late int _selectedProductionWeek;
+
+  // ISO weeks start on Monday; week 1 contains January 4.
+  DateTime _firstWeekMonday(int year) {
+    final january4 = DateTime.utc(year, 1, 4);
+    return january4.subtract(Duration(days: january4.weekday - 1));
+  }
+
+  void _initializeProductionWeeks() {
+    final now = DateTime.now();
+    _productionYear = now.year;
+    final firstMonday = _firstWeekMonday(_productionYear);
+    final weeksInYear =
+        _firstWeekMonday(_productionYear + 1).difference(firstMonday).inDays ~/ 7;
+    final today = DateTime.utc(now.year, now.month, now.day);
+    final currentWeek =
+        ((today.difference(firstMonday).inDays / 7).floor() + 1)
+            .clamp(1, weeksInYear);
+    _selectedProductionWeek = currentWeek;
+    _firstProductionWeek = (currentWeek - 12).clamp(1, weeksInYear);
+    _lastProductionWeek = (currentWeek + 12).clamp(1, weeksInYear);
+    _weekScrollController = ScrollController(
+      initialScrollOffset:
+          (currentWeek - _firstProductionWeek) * _weekItemWidth,
+    );
+  }
+
+  Widget _buildProductionWeeks() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 12, 10, 4),
+          child: Text(
+            'Неделя производства · $_productionYear',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+        SizedBox(
+          height: 56,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final sidePadding =
+                  ((constraints.maxWidth - _weekItemWidth) / 2)
+                      .clamp(0.0, double.infinity);
+              return ListView.builder(
+                controller: _weekScrollController,
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: sidePadding),
+                itemExtent: _weekItemWidth,
+                itemCount: _lastProductionWeek - _firstProductionWeek + 1,
+                itemBuilder: (context, index) {
+                  final week = _firstProductionWeek + index;
+                  return Center(
+                    child: ChoiceChip(
+                      label: Text('Неделя $week'),
+                      showCheckmark: false,
+                      selected: week == _selectedProductionWeek,
+                      onSelected: (selected) {
+                        if (!selected) return;
+                        setState(() => _selectedProductionWeek = week);
+                        _weekScrollController.animateTo(
+                          index * _weekItemWidth,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                        );
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+    _initializeProductionWeeks();
     firstload();
   }
 
@@ -28,7 +113,7 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
   }
 
   Future<void> getspisoperac() async {
-    final uri = Uri.parse('http://172.16.4.104:3000/sql');
+    final uri = Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sql'});
     print("usersdasd");
     print(tehhclass.user_id);
     final requestBody = {
@@ -42,7 +127,7 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
 
     final response = await http.post(
       uri,
-      headers: {"Content-Type": "application/json"},
+      headers: {"Content-Type": "application/json", "X-GN-Api-Key": apiKey},
       body: json.encode(requestBody),
     );
 
@@ -74,6 +159,7 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
 
   @override
   void dispose() {
+    _weekScrollController.dispose();
     _orderController.dispose();
     super.dispose();
   }
@@ -111,7 +197,7 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
       return;
     }
 
-    final uri = Uri.parse('http://172.16.4.104:3000/sql');
+    final uri = Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sql'});
 
     final requestBody = {
       "nik": tehhclass.user_nik,
@@ -133,7 +219,7 @@ order by
 
     final response = await http.post(
       uri,
-      headers: {"Content-Type": "application/json"},
+      headers: {"Content-Type": "application/json", "X-GN-Api-Key": apiKey},
       body: json.encode(requestBody),
     );
 
@@ -143,7 +229,7 @@ order by
       print(asdasdasd[0]['ID'].toString());
 
       if (asdasdasd.length > 0) {
-        final uri = Uri.parse('http://172.16.4.104:3000/sqltran');
+        final uri = Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sqltran'});
 
         final requestBody = {
           "nik": tehhclass.user_nik,
@@ -164,7 +250,7 @@ order by
 
         final response = await http.post(
           uri,
-          headers: {"Content-Type": "application/json"},
+          headers: {"Content-Type": "application/json", "X-GN-Api-Key": apiKey},
           body: json.encode(requestBody),
         );
 
@@ -183,7 +269,7 @@ order by
             ),
           );
         } else {
-          print("Ошибка: ${response.body}");
+          print("Ошибка: ${response.statusCode}");
         }
 
         print(
@@ -223,7 +309,7 @@ order by
     final ids = operations.map((op) => op['MOPER_ID']).join(', ');
     final sql = 'SELECT * FROM OPERATIONS WHERE MOPER_ID IN ($ids);';
     print(sql);
-    final uri = Uri.parse('http://172.16.4.104:3000/sql');
+    final uri = Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sql'});
 
 
     final requestBody = {
@@ -267,7 +353,7 @@ where
 //order By FLAG_END
     final response = await http.post(
       uri,
-      headers: {"Content-Type": "application/json"},
+      headers: {"Content-Type": "application/json", "X-GN-Api-Key": apiKey},
       body: json.encode(requestBody),
     );
 
@@ -302,6 +388,7 @@ where
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildProductionWeeks(),
           // Поле ввода и иконки
           Padding(
               padding: EdgeInsets.all(10),
