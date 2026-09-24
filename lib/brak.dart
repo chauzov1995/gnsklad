@@ -137,6 +137,8 @@ class _brakState extends State<brak> with WidgetsBindingObserver {
       "params": [orderId, articul]
     };
 
+    print(requestBody);
+
     final response = await http.post(
       uri,
       headers: {"Content-Type": "application/json"},
@@ -605,6 +607,10 @@ WHERE CustomID = ? AND Art_Material = ?;
   }
 
   final words = ['брак', 'скол'];
+
+
+
+
 
   @override
   Widget build(BuildContext context) {

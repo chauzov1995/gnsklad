@@ -165,7 +165,7 @@ bool flag_vibral_det_v_taru=false;
         statuss = 3;
 
         setState(() {});
-        playErrorSound();
+     //   playErrorSound();
         _controller.reset();
         _controller.forward();
         ScaffoldMessenger.of(context).showSnackBar(
