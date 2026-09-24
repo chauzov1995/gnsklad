@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:gnsklad/QRScanPage.dart';
 import 'package:gnsklad/tehhclass.dart';
 import 'package:gnsklad/gn_api_config.dart';
 import 'package:http/http.dart' as http;
@@ -22,6 +22,11 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
   late final int _lastProductionWeek;
   late final ScrollController _weekScrollController;
   late int _selectedProductionWeek;
+  Timer? _orderFilterDebounce;
+  int _batchRequestId = 0;
+  bool _operationsReady = false;
+  bool _loadingBatches = true;
+  String? _batchError;
 
   // ISO weeks start on Monday; week 1 contains January 4.
   DateTime _firstWeekMonday(int year) {
@@ -34,11 +39,11 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
     _productionYear = now.year;
     final firstMonday = _firstWeekMonday(_productionYear);
     final weeksInYear =
-        _firstWeekMonday(_productionYear + 1).difference(firstMonday).inDays ~/ 7;
+        _firstWeekMonday(_productionYear + 1).difference(firstMonday).inDays ~/
+            7;
     final today = DateTime.utc(now.year, now.month, now.day);
-    final currentWeek =
-        ((today.difference(firstMonday).inDays / 7).floor() + 1)
-            .clamp(1, weeksInYear);
+    final currentWeek = ((today.difference(firstMonday).inDays / 7).floor() + 1)
+        .clamp(1, weeksInYear);
     _selectedProductionWeek = currentWeek;
     _firstProductionWeek = (currentWeek - 12).clamp(1, weeksInYear);
     _lastProductionWeek = (currentWeek + 12).clamp(1, weeksInYear);
@@ -63,9 +68,8 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
           height: 56,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final sidePadding =
-                  ((constraints.maxWidth - _weekItemWidth) / 2)
-                      .clamp(0.0, double.infinity);
+              final sidePadding = ((constraints.maxWidth - _weekItemWidth) / 2)
+                  .clamp(0.0, double.infinity);
               return ListView.builder(
                 controller: _weekScrollController,
                 scrollDirection: Axis.horizontal,
@@ -87,6 +91,8 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
                           duration: const Duration(milliseconds: 250),
                           curve: Curves.easeOut,
                         );
+                        _orderFilterDebounce?.cancel();
+                        selzakaz();
                       },
                     ),
                   );
@@ -107,9 +113,20 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
     firstload();
   }
 
-  void firstload() {
-    //  _orderController.text = "115874"; //закоменти
-    getspisoperac();
+  Future<void> firstload() async {
+    try {
+      await getspisoperac();
+      if (!mounted) return;
+      _operationsReady = true;
+      await selzakaz();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingBatches = false;
+        _batchError =
+            'Не удалось загрузить операции. Откройте страницу повторно.';
+      });
+    }
   }
 
   Future<void> getspisoperac() async {
@@ -130,6 +147,7 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
       headers: {"Content-Type": "application/json", "X-GN-Api-Key": apiKey},
       body: json.encode(requestBody),
     );
+    if (!mounted) return;
 
     if (response.statusCode == 200) {
       operations = json.decode(response.body);
@@ -140,7 +158,7 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
       //  kolvo = otvet['KOLVO_S'];
       setState(() {});
     } else {
-      print('Ошибка сервера: ${response.statusCode}');
+      throw Exception('Ошибка сервера: ${response.statusCode}');
     }
 
     final List<Map<String, dynamic>> result = await tehhclass.database.rawQuery(
@@ -148,17 +166,19 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
       [tehhclass.user_id],
     );
 
-    if (result.isNotEmpty) {
-      final int defoperac = result.first['defoperac'] as int;
-      print('defoperac = $defoperac');
-      selectedOperation =
-          defoperac == 0 ? operations[0]['MOPER_ID'] : defoperac;
-      setState(() {});
-    }
+    if (!mounted) return;
+    final defoperac = result.isNotEmpty ? result.first['defoperac'] : null;
+    selectedOperation = operations.any((op) => op['MOPER_ID'] == defoperac)
+        ? defoperac as int
+        : operations.isEmpty
+            ? null
+            : operations.first['MOPER_ID'] as int;
+    setState(() {});
   }
 
   @override
   void dispose() {
+    _orderFilterDebounce?.cancel();
     _weekScrollController.dispose();
     _orderController.dispose();
     super.dispose();
@@ -173,26 +193,26 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
 
   List<dynamic> operations = [];
 
-  Future<void> _onScanQr() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => QRScanPage()),
+  void _onOrderFilterChanged(String value) {
+    _orderFilterDebounce?.cancel();
+    // Invalidate pending responses immediately, even before the debounce ends.
+    _batchRequestId++;
+    setState(() {
+      selectedBatch = null;
+      batches = [];
+      _loadingBatches = true;
+      _batchError = null;
+    });
+    _orderFilterDebounce = Timer(
+      const Duration(milliseconds: 400),
+      () => selzakaz(),
     );
-    if (result != null) {
-      print(result);
-      _orderController.text = result;
-
-      selectedzakaz = result;
-      await selzakaz();
-    }
   }
 
   Future<void> _onSubmit() async {
-    if (_orderController.text.isEmpty ||
-        selectedBatch == null ||
-        selectedOperation == null) {
+    if (_loadingBatches || selectedBatch == null || selectedOperation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заполни все поля')),
+        const SnackBar(content: Text('Выбери партию и операцию')),
       );
       return;
     }
@@ -226,10 +246,10 @@ order by
     if (response.statusCode == 200) {
       var asdasdasd = json.decode(response.body);
       print('Ответ от сервера: $asdasdasd');
-      print(asdasdasd[0]['ID'].toString());
 
       if (asdasdasd.length > 0) {
-        final uri = Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sqltran'});
+        final uri =
+            Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sqltran'});
 
         final requestBody = {
           "nik": tehhclass.user_nik,
@@ -296,28 +316,34 @@ order by
     }
   }
 
-  String selectedzakaz = "";
-
-  Future<void> selzakaz({bool needbatchnull = true}) async {
-    if (needbatchnull) {
-      setState(() {
-        selectedBatch = null;
-      });
-    }
-
-    print(operations);
+  Future<void> selzakaz() async {
+    if (!mounted || !_operationsReady) return;
+    final requestId = ++_batchRequestId;
+    setState(() {
+      selectedBatch = null;
+      batches = [];
+      _loadingBatches = true;
+      _batchError = null;
+    });
     final ids = operations.map((op) => op['MOPER_ID']).join(', ');
-    final sql = 'SELECT * FROM OPERATIONS WHERE MOPER_ID IN ($ids);';
-    print(sql);
+    final weekStart = _firstWeekMonday(_productionYear)
+        .add(Duration(days: (_selectedProductionWeek - 1) * 7));
+    final weekEnd = weekStart.add(const Duration(days: 7));
+    final orderFilter = _orderController.text.trim();
+    final params = <dynamic>[
+      2,
+      weekStart.toIso8601String().substring(0, 10),
+      weekEnd.toIso8601String().substring(0, 10),
+      if (orderFilter.isNotEmpty) '%$orderFilter%',
+    ];
     final uri = Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sql'});
-
 
     final requestBody = {
       "nik": tehhclass.user_nik,
       "pass": tehhclass.user_pass,
       "sql": """
     select
- MP.COMMENT,  MP.ID,
+ MP.COMMENT, MP.ID, MP.MAGAZINE_ID,
     MP.MTEXPROCID, MP.NAME, MP.Srok,
  MP.FLAG_END,
  (select Sum(KolVo) from MPCustom where  MPARTSGROUPSID=MP.ID) as Sum_Kol_Vo,
@@ -338,43 +364,53 @@ order by
 from
  MPARTSGROUPS MP
 where
- MAGAZINE_ID=? and MP.Texproc_Group_ID=?  
+ MP.Texproc_Group_ID=?
+ AND MP.SROK >= ? AND MP.SROK < ?
+ ${orderFilter.isNotEmpty ? 'AND CAST(MP.MAGAZINE_ID AS VARCHAR(32)) LIKE ?' : ''}
    AND ((
         SELECT FIRST 1 M.MOPERID
         FROM MAGAZINETEXOPER M
         WHERE M.MPARTSGROUPS_ID = MP.ID
           AND M.Current_Flag = 1
         ORDER BY M.ID DESC
-    ) IN ($ids)  OR MP.FLAG_END = 1)
+    ) IN (${ids.isEmpty ? 'NULL' : ids}) OR MP.FLAG_END = 1)
  order By MP.FLAG_END 
     """,
-      "params": [selectedzakaz, 2]
+      "params": params
     };
-//order By FLAG_END
-    final response = await http.post(
-      uri,
-      headers: {"Content-Type": "application/json", "X-GN-Api-Key": apiKey},
-      body: json.encode(requestBody),
-    );
+    try {
+      final response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json", "X-GN-Api-Key": apiKey},
+        body: json.encode(requestBody),
+      );
+      if (!mounted || requestId != _batchRequestId) return;
 
-    if (response.statusCode == 200) {
-      batches = json.decode(response.body);
+      if (response.statusCode == 200) {
+        batches = json.decode(response.body);
 
-      batches.sort((a, b) {
-        // Проверяем, равен ли TEKOPER 259
-        final aIsTarget = a['TEKOPER'] == selectedOperation;
-        final bIsTarget = b['TEKOPER'] == selectedOperation;
+        batches.sort((a, b) {
+          // Проверяем, равен ли TEKOPER 259
+          final aIsTarget = a['TEKOPER'] == selectedOperation;
+          final bIsTarget = b['TEKOPER'] == selectedOperation;
 
-        if (aIsTarget && !bIsTarget) return -1; // a раньше
-        if (!aIsTarget && bIsTarget) return 1; // b раньше
-        return 0; // порядок не меняем
+          if (aIsTarget && !bIsTarget) return -1; // a раньше
+          if (!aIsTarget && bIsTarget) return 1; // b раньше
+          return 0; // порядок не меняем
+        });
+
+        print('Ответ от сервера: $batches');
+
+        setState(() => _loadingBatches = false);
+      } else {
+        throw Exception('Ошибка сервера: ${response.statusCode}');
+      }
+    } catch (_) {
+      if (!mounted || requestId != _batchRequestId) return;
+      setState(() {
+        _loadingBatches = false;
+        _batchError = 'Не удалось загрузить партии';
       });
-
-      print('Ответ от сервера: $batches');
-
-      setState(() {});
-    } else {
-      print('Ошибка сервера: ${response.statusCode}');
     }
   }
 
@@ -408,24 +444,31 @@ where
                         controller: _orderController,
                         decoration: InputDecoration(
                           labelText: 'Номер заказа',
+                          hintText: 'Номер целиком или часть номера',
                           prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _orderController.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Сбросить фильтр',
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _orderController.clear();
+                                    _orderFilterDebounce?.cancel();
+                                    selzakaz();
+                                  },
+                                ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         keyboardType: TextInputType.number,
+                        onChanged: _onOrderFilterChanged,
                         onSubmitted: (value) async {
-                          selectedzakaz = value;
-
+                          _orderFilterDebounce?.cancel();
                           await selzakaz();
                         },
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    icon: const Icon(Icons.qr_code_scanner, size: 32),
-                    onPressed: _onScanQr,
                   ),
                 ],
               )),
@@ -438,40 +481,50 @@ where
               )),
 
           Expanded(
-              child:
-                  // Список партий
-                  ListView.builder(
-            shrinkWrap: true,
-            itemCount: batches.length,
-            itemBuilder: (context, index) {
-              final batch = batches[index];
-              return RadioListTile<int>(
-                title:  batch['TEKOPER'] == selectedOperation
-                        ? Text(
-                            batch['NAME'],
-                            style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.w600),
-                          )
-                        : Text(batch['NAME']),
-                subtitle: batch['FLAG_END'] == 1
-                    ? Text("Завершена",style: TextStyle(color: Colors.green),)
-                    : Text(batch['MOPER_NAME']),
-                value: batch['ID'] as int,
-                groupValue: selectedBatch,
-                onChanged: batch['FLAG_END'] == 1 ||
-                        batch['TEKOPER'] != selectedOperation
-                    ? null // отключаем выбор
-                    : (val) async {
-                        setState(() {
-                          selectedBatch = val;
-                        });
-
-                        await selzakaz(needbatchnull: false);
-                      },
-              );
-            },
-          )),
+              child: _loadingBatches
+                  ? const Center(child: CircularProgressIndicator())
+                  : _batchError != null
+                      ? Center(child: Text(_batchError!))
+                      : batches.isEmpty
+                          ? const Center(
+                              child:
+                                  Text('За выбранный период партии не найдены'))
+                          :
+                          // Список партий
+                          ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: batches.length,
+                              itemBuilder: (context, index) {
+                                final batch = batches[index];
+                                return RadioListTile<int>(
+                                  title: batch['TEKOPER'] == selectedOperation
+                                      ? Text(
+                                          batch['NAME'],
+                                          style: TextStyle(
+                                              color: Colors.green,
+                                              fontWeight: FontWeight.w600),
+                                        )
+                                      : Text(batch['NAME']),
+                                  subtitle: Text(
+                                    'Заказ №${batch['MAGAZINE_ID']} · '
+                                    '${batch['FLAG_END'] == 1 ? 'Завершена' : (batch['MOPER_NAME'] ?? '')}',
+                                    style: batch['FLAG_END'] == 1
+                                        ? const TextStyle(color: Colors.green)
+                                        : null,
+                                  ),
+                                  value: batch['ID'] as int,
+                                  groupValue: selectedBatch,
+                                  onChanged: batch['FLAG_END'] == 1 ||
+                                          batch['TEKOPER'] != selectedOperation
+                                      ? null // отключаем выбор
+                                      : (val) {
+                                          setState(() {
+                                            selectedBatch = val;
+                                          });
+                                        },
+                                );
+                              },
+                            )),
 
           // const SizedBox(height: 10),
           Padding(
@@ -479,6 +532,7 @@ where
               child:
                   // Список операций (заменили на ComboBox)
                   DropdownButtonFormField<int>(
+                isExpanded: true,
                 decoration: InputDecoration(
                   labelText: 'Я выполняю операцию',
                   border: OutlineInputBorder(
@@ -489,7 +543,11 @@ where
                 items: operations.map((op) {
                   return DropdownMenuItem<int>(
                     value: op['MOPER_ID'],
-                    child: Text(op['NAME']),
+                    child: Text(
+                      op['NAME'],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }).toList(),
                 onChanged: (val) async {
@@ -518,7 +576,9 @@ where
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _onSubmit,
+                  onPressed: !_loadingBatches && selectedBatch != null
+                      ? _onSubmit
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         selectedBatch != null ? Colors.green : Colors.red,
