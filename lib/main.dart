@@ -69,7 +69,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   final UpdateService updateService = UpdateService();
   List<int> _sections = List.of(NavigationPreferences.defaults);
   int _preferencesRequest = 0;
@@ -105,6 +105,9 @@ class _MyHomePageState extends State<MyHomePage> {
       _sections = List.of(NavigationPreferences.defaults);
     });
     _loadNavigation();
+    if (tehhclass.user_nik.isNotEmpty) {
+      updateService.checkForUpdate(context, force: true);
+    }
   }
 
   Future<void> _configureNavigation() async {
@@ -124,10 +127,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    // TODO: implement initState
-
-    firstinit();
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    firstinit();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) updateService.checkForUpdate(context);
+    });
     _loadNavigation(initial: true);
 
 //com.android.scanner.broadcast
@@ -136,8 +141,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> firstinit() async {
-    updateService.checkForUpdate(context);
-
     await tehhclass.dw.initialize();
     //  await tehhclass.dw.createDefaultProfile(profileName: "gnprof");
 
@@ -152,8 +155,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     tehhclass.receiver.stop();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      updateService.checkForUpdate(context);
+    }
   }
 
   void _onItemTapped(int index) {
