@@ -22,11 +22,25 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
   late final int _lastProductionWeek;
   late final ScrollController _weekScrollController;
   late int _selectedProductionWeek;
+  bool _allWeeks = false;
   Timer? _orderFilterDebounce;
   int _batchRequestId = 0;
   bool _operationsReady = false;
   bool _loadingBatches = true;
   String? _batchError;
+
+  bool get _needsOrderFilter =>
+      _allWeeks && _orderController.text.trim().isEmpty;
+
+  String _formatDeadline(dynamic value) {
+    if (value == null || value.toString().trim().isEmpty) {
+      return 'не указан';
+    }
+    final date = DateTime.tryParse(value.toString());
+    if (date == null) return value.toString();
+    return '${date.day.toString().padLeft(2, '0')}.'
+        '${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
 
   // ISO weeks start on Monday; week 1 contains January 4.
   DateTime _firstWeekMonday(int year) {
@@ -59,9 +73,26 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(10, 12, 10, 4),
-          child: Text(
-            'Неделя производства · $_productionYear',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Неделя производства · $_productionYear',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Все недели'),
+                selected: _allWeeks,
+                onSelected: (selected) {
+                  setState(() => _allWeeks = selected);
+                  _orderFilterDebounce?.cancel();
+                  selzakaz();
+                },
+              ),
+            ],
           ),
         ),
         SizedBox(
@@ -80,12 +111,15 @@ class _OrderOperationPageState extends State<OrderOperationPage> {
                   final week = _firstProductionWeek + index;
                   return Center(
                     child: ChoiceChip(
-                      label: Text('Неделя $week'),
+                      label: Text('$week неделя'),
                       showCheckmark: false,
-                      selected: week == _selectedProductionWeek,
+                      selected: !_allWeeks && week == _selectedProductionWeek,
                       onSelected: (selected) {
                         if (!selected) return;
-                        setState(() => _selectedProductionWeek = week);
+                        setState(() {
+                          _selectedProductionWeek = week;
+                          _allWeeks = false;
+                        });
                         _weekScrollController.animateTo(
                           index * _weekItemWidth,
                           duration: const Duration(milliseconds: 250),
@@ -200,7 +234,7 @@ select OW.MOPER_ID, O.Name from MOPER_WORKPLACES OW, MUSERWORK UW, MOper O where
     setState(() {
       selectedBatch = null;
       batches = [];
-      _loadingBatches = true;
+      _loadingBatches = !_needsOrderFilter;
       _batchError = null;
     });
     _orderFilterDebounce = Timer(
@@ -317,14 +351,15 @@ order by
   }
 
   Future<void> selzakaz() async {
-    if (!mounted || !_operationsReady) return;
+    if (!mounted) return;
     final requestId = ++_batchRequestId;
     setState(() {
       selectedBatch = null;
       batches = [];
-      _loadingBatches = true;
+      _loadingBatches = !_needsOrderFilter;
       _batchError = null;
     });
+    if (_needsOrderFilter || !_operationsReady) return;
     final ids = operations.map((op) => op['MOPER_ID']).join(', ');
     final weekStart = _firstWeekMonday(_productionYear)
         .add(Duration(days: (_selectedProductionWeek - 1) * 7));
@@ -332,8 +367,10 @@ order by
     final orderFilter = _orderController.text.trim();
     final params = <dynamic>[
       2,
-      weekStart.toIso8601String().substring(0, 10),
-      weekEnd.toIso8601String().substring(0, 10),
+      if (!_allWeeks) ...[
+        weekStart.toIso8601String().substring(0, 10),
+        weekEnd.toIso8601String().substring(0, 10),
+      ],
       if (orderFilter.isNotEmpty) '%$orderFilter%',
     ];
     final uri = Uri.parse(apiUrl).replace(queryParameters: {'endpoint': 'sql'});
@@ -365,7 +402,7 @@ from
  MPARTSGROUPS MP
 where
  MP.Texproc_Group_ID=?
- AND MP.SROK >= ? AND MP.SROK < ?
+ ${_allWeeks ? '' : 'AND MP.SROK >= ? AND MP.SROK < ?'}
  ${orderFilter.isNotEmpty ? 'AND CAST(MP.MAGAZINE_ID AS VARCHAR(32)) LIKE ?' : ''}
    AND ((
         SELECT FIRST 1 M.MOPERID
@@ -481,50 +518,65 @@ where
               )),
 
           Expanded(
-              child: _loadingBatches
-                  ? const Center(child: CircularProgressIndicator())
-                  : _batchError != null
-                      ? Center(child: Text(_batchError!))
-                      : batches.isEmpty
-                          ? const Center(
-                              child:
-                                  Text('За выбранный период партии не найдены'))
-                          :
-                          // Список партий
-                          ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: batches.length,
-                              itemBuilder: (context, index) {
-                                final batch = batches[index];
-                                return RadioListTile<int>(
-                                  title: batch['TEKOPER'] == selectedOperation
-                                      ? Text(
-                                          batch['NAME'],
-                                          style: TextStyle(
-                                              color: Colors.green,
-                                              fontWeight: FontWeight.w600),
-                                        )
-                                      : Text(batch['NAME']),
-                                  subtitle: Text(
-                                    'Заказ №${batch['MAGAZINE_ID']} · '
-                                    '${batch['FLAG_END'] == 1 ? 'Завершена' : (batch['MOPER_NAME'] ?? '')}',
-                                    style: batch['FLAG_END'] == 1
-                                        ? const TextStyle(color: Colors.green)
-                                        : null,
-                                  ),
-                                  value: batch['ID'] as int,
-                                  groupValue: selectedBatch,
-                                  onChanged: batch['FLAG_END'] == 1 ||
-                                          batch['TEKOPER'] != selectedOperation
-                                      ? null // отключаем выбор
-                                      : (val) {
-                                          setState(() {
-                                            selectedBatch = val;
-                                          });
-                                        },
-                                );
-                              },
-                            )),
+              child: _needsOrderFilter
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'Введите номер заказа или его часть',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : _loadingBatches
+                      ? const Center(child: CircularProgressIndicator())
+                      : _batchError != null
+                          ? Center(child: Text(_batchError!))
+                          : batches.isEmpty
+                              ? Center(
+                                  child: Text(_allWeeks
+                                      ? 'По этому номеру партии не найдены'
+                                      : 'За выбранный период партии не найдены'))
+                              :
+                              // Список партий
+                              ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: batches.length,
+                                  itemBuilder: (context, index) {
+                                    final batch = batches[index];
+                                    return RadioListTile<int>(
+                                      title: batch['TEKOPER'] ==
+                                              selectedOperation
+                                          ? Text(
+                                              batch['NAME'],
+                                              style: TextStyle(
+                                                  color: Colors.green,
+                                                  fontWeight: FontWeight.w600),
+                                            )
+                                          : Text(batch['NAME']),
+                                      subtitle: Text(
+                                        'Заказ №${batch['MAGAZINE_ID']} · '
+                                        '${batch['FLAG_END'] == 1 ? 'Завершена' : (batch['MOPER_NAME'] ?? '')}'
+                                        '${_allWeeks ? '\nСрок: ${_formatDeadline(batch['SROK'])}' : ''}',
+                                        style: batch['FLAG_END'] == 1
+                                            ? const TextStyle(
+                                                color: Colors.green)
+                                            : null,
+                                      ),
+                                      value: batch['ID'] as int,
+                                      groupValue: selectedBatch,
+                                      onChanged: batch['FLAG_END'] == 1 ||
+                                              batch['TEKOPER'] !=
+                                                  selectedOperation
+                                          ? null // отключаем выбор
+                                          : (val) {
+                                              setState(() {
+                                                selectedBatch = val;
+                                              });
+                                            },
+                                    );
+                                  },
+                                )),
 
           // const SizedBox(height: 10),
           Padding(

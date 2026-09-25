@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:gnsklad/OrderOperationPage.dart';
+
+import 'navigation_settings.dart';
 
 import 'package:gnsklad/tehhclass.dart';
 import 'package:gnsklad/gn_api_config.dart';
@@ -12,7 +11,10 @@ import 'package:http/http.dart' as http;
 
 // Define a custom Form widget.
 class profile extends StatefulWidget {
-  profile();
+  final ValueChanged<int>? onOpenSection;
+  final VoidCallback? onUserChanged;
+  final VoidCallback? onConfigureNavigation;
+  profile({this.onOpenSection, this.onUserChanged, this.onConfigureNavigation});
 
   @override
   _profileState createState() => _profileState();
@@ -103,13 +105,15 @@ class _profileState extends State<profile> {
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.black),
               tooltip: 'Выход',
-              onPressed: () {
-                tehhclass.database.rawDelete('DELETE FROM Users');
+              onPressed: () async {
+                await tehhclass.database.rawDelete('DELETE FROM Users');
+                if (!mounted) return;
                 tehhclass.user_id = 0;
                 tehhclass.user_nik = '';
                 tehhclass.user_pass = '';
                 tehhclass.FIO = '';
                 setState(() {});
+                widget.onUserChanged?.call();
               },
             ),
           ],
@@ -123,7 +127,6 @@ class _profileState extends State<profile> {
               topLeft: Radius.circular(32),
               topRight: Radius.circular(32),
             ),
-
           ),
           child: ListView(
             children: [
@@ -171,14 +174,16 @@ class _profileState extends State<profile> {
                               });
                             } else {
                               var otvet = otvets[0];
-                              tehhclass.database.rawInsert(
+                              await tehhclass.database.rawInsert(
                                   'insert into Users(ID, NIK, USERGROUP, FIO, MUSERGROUPID, USERPASSWORD) VALUES (${otvet['ID']}, "${otvet['NIK']}", ${otvet['USERGROUP']}, "${otvet['FIO']}", ${otvet['MUSERGROUPID']}, "${otvet['USERPASSWORD']}" ) ');
 
                               tehhclass.user_nik = otvet['NIK'];
                               tehhclass.user_id = otvet['ID'];
                               tehhclass.FIO = otvet['FIO'];
                               tehhclass.user_pass = otvet['USERPASSWORD'];
+                              if (!mounted) return;
                               setState(() {});
+                              widget.onUserChanged?.call();
                               //countasdasd = "${otvet['taraName']}";
                             }
                             // tehhclass.
@@ -189,23 +194,21 @@ class _profileState extends State<profile> {
                   : Container(
                       child: Column(
                         children: [
-                          // Переход на страницу операций
-                          ListTile(
-                            leading: const Icon(Icons.build,
-                                size: 28, color: Colors.blue),
-                            title: const Text(
-                              'Операции',
-                              style: TextStyle(fontSize: 18),
+                          for (final section in appSections)
+                            ListTile(
+                              leading: Icon(section.icon, color: Colors.blue),
+                              title: Text(section.label),
+                              onTap: () =>
+                                  widget.onOpenSection?.call(section.id),
                             ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => OrderOperationPage()),
-                              );
-                            },
+                          const Divider(),
+                          ListTile(
+                            leading: const Icon(Icons.tune),
+                            title: const Text('Настройка вкладок'),
+                            subtitle: const Text(
+                                'Выбор и порядок функций на нижней панели'),
+                            onTap: widget.onConfigureNavigation,
                           ),
-
                           // const Divider(),
 /*
                   // Озвучка числа 1349

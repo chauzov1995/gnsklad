@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
@@ -10,10 +9,10 @@ import 'package:gnsklad/profile.dart';
 import 'package:gnsklad/tars.dart';
 import 'package:gnsklad/tehhclass.dart';
 import 'package:gnsklad/update_service.dart';
-import 'package:sqflite_common/sqlite_api.dart';
 
 import 'brak.dart';
-
+import 'OrderOperationPage.dart';
+import 'navigation_settings.dart';
 
 int sdkver = 21;
 late List<CameraDescription> _cameras;
@@ -36,8 +35,6 @@ class MyHttpOverrides extends HttpOverrides {
 }
 
 class MyApp extends StatelessWidget {
-
-
   const MyApp({Key? key}) : super(key: key);
 
   // This widget is the root of your application.
@@ -64,12 +61,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-
-
-
-
-  const MyHomePage({Key? key, required this.title})
-      : super(key: key);
+  const MyHomePage({Key? key, required this.title}) : super(key: key);
 
   final String title;
 
@@ -79,7 +71,56 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final UpdateService updateService = UpdateService();
+  List<int> _sections = List.of(NavigationPreferences.defaults);
+  int _preferencesRequest = 0;
 
+  Future<void> _loadNavigation({bool initial = false}) async {
+    final request = ++_preferencesRequest;
+    final userId = tehhclass.user_id;
+    try {
+      final sections = await NavigationPreferences.load(userId);
+      if (!mounted || request != _preferencesRequest) return;
+      setState(() {
+        _sections = sections;
+        if (initial) {
+          final first = sections.first;
+          tehhclass.selectedIndex = tehhclass.user_nik.isEmpty &&
+                  (first == 2 || first == 3 || first == 5)
+              ? 4
+              : first;
+        }
+      });
+    } catch (_) {
+      if (!mounted || request != _preferencesRequest) return;
+      setState(() => _sections = List.of(NavigationPreferences.defaults));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось загрузить настройки вкладок')),
+      );
+    }
+  }
+
+  void _onUserChanged() {
+    setState(() {
+      tehhclass.selectedIndex = 4;
+      _sections = List.of(NavigationPreferences.defaults);
+    });
+    _loadNavigation();
+  }
+
+  Future<void> _configureNavigation() async {
+    final userId = tehhclass.user_id;
+    final result = await Navigator.push<List<int>>(
+      context,
+      MaterialPageRoute(
+          builder: (_) => NavigationSettingsPage(
+                sections: _sections,
+                userId: userId,
+              )),
+    );
+    if (!mounted || result == null || userId != tehhclass.user_id) return;
+    ++_preferencesRequest;
+    setState(() => _sections = result);
+  }
 
   @override
   void initState() {
@@ -87,25 +128,20 @@ class _MyHomePageState extends State<MyHomePage> {
 
     firstinit();
     super.initState();
+    _loadNavigation(initial: true);
 
 //com.android.scanner.broadcast
 
     // tehhclass.receiver.isListening
   }
 
-
-
   Future<void> firstinit() async {
-
-
     updateService.checkForUpdate(context);
 
-
     await tehhclass.dw.initialize();
-  //  await tehhclass.dw.createDefaultProfile(profileName: "gnprof");
+    //  await tehhclass.dw.createDefaultProfile(profileName: "gnprof");
 
-
-   // print('asdasdasdsaasdasdassda');
+    // print('asdasdasdsaasdasdassda');
     //print(  (await tehhclass.dw.requestActiveProfile()).flatMap(transform));
 
     await tehhclass.receiver.start();
@@ -121,54 +157,52 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onItemTapped(int index) {
-    if (tehhclass.user_nik == '' && (index == 2 ||  index == 3)) {
+    if (tehhclass.user_nik == '' && (index == 2 || index == 3 || index == 5)) {
       index = 4;
     }
 
     setState(() {
       tehhclass.selectedIndex = index;
     });
-
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       body: IndexedStack(children: <Widget>[
         postavshikir(_cameras),
         fotosklad(_cameras),
         tars(),
         brak(_cameras),
-        profile(),
+        profile(
+            onOpenSection: _onItemTapped,
+            onUserChanged: _onUserChanged,
+            onConfigureNavigation: _configureNavigation),
+        if (tehhclass.selectedIndex == 5 && tehhclass.user_nik.isNotEmpty)
+          KeyedSubtree(
+              key: ValueKey(tehhclass.user_id), child: OrderOperationPage())
+        else
+          const SizedBox.shrink(),
       ], index: tehhclass.selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.business_center),
-            label: 'Поставщики',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.hardware),
-            label: 'Фурнитура',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_basket_outlined),
-            label: 'Тары',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.error_outlined),
-            label: 'Брак',
-          ),
-          BottomNavigationBarItem(
+        items: <BottomNavigationBarItem>[
+          for (final id in _sections)
+            BottomNavigationBarItem(
+              icon: Icon(appSections.firstWhere((s) => s.id == id).icon),
+              label: appSections.firstWhere((s) => s.id == id).label,
+            ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.menu),
             label: 'Меню',
           )
         ],
-        currentIndex: tehhclass.selectedIndex,
+        currentIndex: _sections.contains(tehhclass.selectedIndex)
+            ? _sections.indexOf(tehhclass.selectedIndex)
+            : _sections.length,
         selectedItemColor: Colors.amber[800],
-        onTap: _onItemTapped,
+        onTap: (index) =>
+            _onItemTapped(index == _sections.length ? 4 : _sections[index]),
       ),
     );
   }
