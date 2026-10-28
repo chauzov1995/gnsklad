@@ -69,6 +69,109 @@ class _brakState extends State<brak> with WidgetsBindingObserver {
   }
 
   List<dynamic> photospisurl = [];
+  List<dynamic> _brakHistory = [];
+  bool _historyLoading = false;
+  String? _historyError;
+  String? _historyAccount;
+  int _historyRequest = 0;
+
+  @override
+  void didUpdateWidget(covariant brak oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final account = '${tehhclass.user_id}:${tehhclass.user_nik}';
+    if (_historyAccount != account) _loadBrakHistory();
+  }
+
+  Future<void> _loadBrakHistory() async {
+    if (!mounted) return;
+    final account = '${tehhclass.user_id}:${tehhclass.user_nik}';
+    final request = ++_historyRequest;
+    setState(() {
+      if (_historyAccount != account) _brakHistory = [];
+      _historyAccount = account;
+      _historyLoading = tehhclass.user_nik.isNotEmpty;
+      _historyError = null;
+    });
+    if (tehhclass.user_nik.isEmpty) return;
+    try {
+      final response = await http.post(
+        Uri.parse('http://172.16.4.104:3000/sql'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'nik': tehhclass.user_nik,
+          'pass': tehhclass.user_pass,
+          'sql': '''
+SELECT FIRST 10
+  mwz.ID, mwz.MAGAZINEID, mc.ART_MATERIAL, mc.NAME,
+  mwz.KOLVO, mwz.PRIM, mz.DATEINSERT
+FROM MAGAZINEWOTDELKAZAM mwz
+JOIN MAGAZINEZAM mz ON mz.ID = mwz.MAGAZINEZAMID
+LEFT JOIN MCUSTOM mc ON mc.ID = mwz.MCUSTOMID
+WHERE mz.PRIM = ?
+ORDER BY mwz.ID DESC
+''',
+          'params': ['Брак стекла'],
+        }),
+      ).timeout(const Duration(seconds: 20));
+      if (response.statusCode != 200) throw Exception('HTTP ${response.statusCode}');
+      final rows = json.decode(response.body);
+      if (rows is! List) throw const FormatException('Ожидался список');
+      if (!mounted || request != _historyRequest) return;
+      setState(() => _brakHistory = rows);
+    } catch (_) {
+      if (!mounted || request != _historyRequest) return;
+      setState(() => _historyError = 'Не удалось загрузить историю брака');
+    } finally {
+      if (mounted && request == _historyRequest) {
+        setState(() => _historyLoading = false);
+      }
+    }
+  }
+
+  String _historyDate(dynamic value) {
+    if (value == null) return '';
+    final date = DateTime.tryParse(value.toString());
+    return date == null ? value.toString() : DateFormat('dd.MM.yyyy').format(date);
+  }
+
+  Widget _buildBrakHistory() {
+    return RefreshIndicator(
+      onRefresh: _loadBrakHistory,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: 24, bottom: 24),
+        children: [
+          const Icon(Icons.qr_code_scanner, size: 40),
+          const SizedBox(height: 12),
+          const Text('Отсканируй QR-код', textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          Row(children: [
+            const Expanded(child: Text('Последние 10 записей',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+            IconButton(
+              tooltip: 'Обновить историю',
+              onPressed: _historyLoading ? null : _loadBrakHistory,
+              icon: const Icon(Icons.refresh),
+            ),
+          ]),
+          if (_historyLoading) const LinearProgressIndicator(),
+          if (_historyError != null)
+            Padding(padding: const EdgeInsets.all(16), child: Text(_historyError!)),
+          if (!_historyLoading && _historyError == null && _brakHistory.isEmpty)
+            const Padding(padding: EdgeInsets.all(16), child: Text('Записей пока нет')),
+          for (final row in _brakHistory)
+            Card(child: ListTile(
+              title: Text('Заказ №${row['MAGAZINEID']} · ${row['ART_MATERIAL'] ?? 'Без артикула'}'),
+              subtitle: Text([
+                if (row['NAME'] != null) row['NAME'].toString(),
+                'Количество: ${row['KOLVO']} · ${_historyDate(row['DATEINSERT'])}',
+                if ((row['PRIM'] ?? '').toString().trim().isNotEmpty) row['PRIM'].toString(),
+              ].join('\n')),
+            )),
+        ],
+      ),
+    );
+  }
 
   qrscanres() async {
     if (_savingBrak) return;
@@ -239,6 +342,7 @@ class _brakState extends State<brak> with WidgetsBindingObserver {
   }
 
   firstload() async {
+    _loadBrakHistory();
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
     print(androidInfo.version.sdkInt);
@@ -605,6 +709,7 @@ WHERE CustomID = ? AND Art_Material = ?;
       });
 
       print("Всё ок");
+      await _loadBrakHistory();
     } else {
       print('Ошибка сервера: ${response.statusCode}');
       print(response.body);
@@ -673,33 +778,7 @@ WHERE CustomID = ? AND Art_Material = ?;
         body: Container(
           padding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
           child: articul == ''
-              ? Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text("Отсканируй QR-код"),
-                  orderId == "" || true //закоментил отправку
-                      ? Container()
-                      : Column(
-                          children: [
-                            Text(
-                              "или\nпо заказу ${orderId}",
-                              textAlign: TextAlign.center,
-                            ),
-                            _isSending
-                                ? Padding(
-                                    padding: EdgeInsets.all(6),
-                                    child: Center(
-                                        child:
-                                            const CircularProgressIndicator()),
-                                  )
-                                : ElevatedButton(
-                                    onPressed: () {
-                                      sendEmail();
-                                    },
-                                    child: const Text('Отправить письмо'),
-                                  ), //
-                          ],
-                        )
-                ]))
+              ? _buildBrakHistory()
               : ListView(
                   children: <Widget>[
                     Card(
