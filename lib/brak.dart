@@ -71,6 +71,7 @@ class _brakState extends State<brak> with WidgetsBindingObserver {
   List<dynamic> photospisurl = [];
 
   qrscanres() async {
+    if (_savingBrak) return;
     if (_commentController.text != "") {
       bool? shouldProceed = await showDialog(
         context: context,
@@ -394,6 +395,27 @@ www.giulianovars.ru
   }
 
   Future<void> sendbrak() async {
+    if (_savingBrak) return;
+    setState(() => _savingBrak = true);
+    try {
+      await _saveBrak();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Не удалось подтвердить сохранение брака. Проверьте запись перед повторной отправкой.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _savingBrak = false);
+    }
+  }
+
+  bool _savingBrak = false;
+
+  Future<void> _saveBrak() async {
+    final orderId = this.orderId;
+    final articul = this.articul;
+    final kolvosel = this.kolvosel;
+    final comment = _commentController.text.trim();
     if (kolvosel == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -525,18 +547,10 @@ VALUES (
         orderId,
         articul,
         kolvosel,
-        _commentController.text.trim(),
+        comment,
 
       ]
     };
-
-    final response = await http.post(
-      uri,
-      headers: {"Content-Type": "application/json"},
-      body: json.encode(requestBody),
-    );
-
-
 
     final requestBody2 = {
       "nik": tehhclass.user_nik,
@@ -551,19 +565,31 @@ WHERE CustomID = ? AND Art_Material = ?;
     """,
       "params": [
 
-        "${_commentController.text.trim()} (${formattedDate2})",
+        "$comment ($formattedDate2)",
         orderId,
         articul,
       ]
     };
 
-    final response2 = await http.post(
-      uri,
+    final response = await http.post(
+      uri.replace(path: '/sqltran'),
       headers: {"Content-Type": "application/json"},
-      body: json.encode(requestBody2),
+      body: json.encode({
+        "nik": tehhclass.user_nik,
+        "pass": tehhclass.user_pass,
+        "queries": [
+          {"sql": requestBody['sql'], "params": requestBody['params']},
+          {"sql": requestBody2['sql'], "params": requestBody2['params']},
+          {
+            "sql": "INSERT INTO MICQLOG (MAGAZINE_ID, MAGAZINESTATUS_ID, PRIM, USERICQ) VALUES (?, ?, ?, ?)",
+            "params": [-7, orderId, articul, kolvosel],
+          },
+        ],
+      }),
     );
 
-    if (response.statusCode == 200 && response2.statusCode == 200) {
+    if (!mounted) return;
+    if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
           'Успешно отправлено',
@@ -575,13 +601,16 @@ WHERE CustomID = ? AND Art_Material = ?;
 
       setState(() {
         _commentController.text = "";
-        articul = '';
+        this.articul = '';
       });
 
       print("Всё ок");
     } else {
       print('Ошибка сервера: ${response.statusCode}');
       print(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Не удалось сохранить брак и запись в журнале'),
+      ));
     }
   }
 
@@ -866,7 +895,7 @@ WHERE CustomID = ? AND Art_Material = ?;
                 FloatingActionButton(
                   heroTag: "btn2",
                   child: Icon(Icons.send),
-                  onPressed: sendbrak,
+                  onPressed: _savingBrak ? null : sendbrak,
                 )
               ]));
   }
