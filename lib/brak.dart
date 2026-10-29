@@ -30,6 +30,7 @@ import 'package:gnsklad/tars.dart';
 import 'package:http/http.dart' as http;
 
 import 'QRScanPage.dart';
+import 'brak_delete.dart';
 
 // Define a custom Form widget.
 class brak extends StatefulWidget {
@@ -74,6 +75,7 @@ class _brakState extends State<brak> with WidgetsBindingObserver {
   String? _historyError;
   String? _historyAccount;
   int _historyRequest = 0;
+  bool _deletingBrak = false;
 
   @override
   void didUpdateWidget(covariant brak oldWidget) {
@@ -103,7 +105,8 @@ class _brakState extends State<brak> with WidgetsBindingObserver {
           'sql': '''
 SELECT FIRST 10
   mwz.ID, mwz.MAGAZINEID, mc.ART_MATERIAL, mc.NAME,
-  mwz.KOLVO, mwz.PRIM, mz.DATEINSERT
+  mwz.KOLVO, mwz.PRIM, mz.DATEINSERT,
+  $brakHistoryMatchColumns
 FROM MAGAZINEWOTDELKAZAM mwz
 JOIN MAGAZINEZAM mz ON mz.ID = mwz.MAGAZINEZAMID
 LEFT JOIN MCUSTOM mc ON mc.ID = mwz.MCUSTOMID
@@ -134,6 +137,52 @@ ORDER BY mwz.ID DESC
     return date == null ? value.toString() : DateFormat('dd.MM.yyyy').format(date);
   }
 
+  Future<void> _deleteBrak(Map<dynamic, dynamic> row) async {
+    if (_deletingBrak || _savingBrak || brakDeletionBlockedReason(row) != null) return;
+    setState(() => _deletingBrak = true);
+    final account = '${tehhclass.user_id}:${tehhclass.user_nik}';
+    try {
+      final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Удалить запись брака?'),
+        content: Text('Заказ №${row['MAGAZINEID']}\nАртикул: ${row['ART_MATERIAL']}\nКоличество: ${row['KOLVO']}\n\n'
+            'Запись о браке и добавленный к детали комментарий будут удалены. Фотографии сохранятся.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить')),
+        ],
+      ));
+      if (confirmed != true || !mounted || account != '${tehhclass.user_id}:${tehhclass.user_nik}') return;
+      final response = await http.post(
+        Uri.parse('http://172.16.4.104:3000/sql'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'nik': tehhclass.user_nik, 'pass': tehhclass.user_pass,
+          'sql': deleteBrakSql, 'params': [row['ID']],
+        }),
+      ).timeout(const Duration(seconds: 20));
+      if (response.statusCode != 200) throw Exception('HTTP ${response.statusCode}');
+      final data = json.decode(response.body);
+      final result = data is List && data.length == 1 ? data.first : data;
+      if (result is! Map || ![0, 1].contains(result['DELETED_COUNT'])) {
+        throw const FormatException('Нет подтверждения удаления');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+        result['DELETED_COUNT'] == 1 ? 'Запись брака удалена'
+            : 'Эту запись уже нельзя удалить. История будет обновлена.',
+      )));
+      await _loadBrakHistory();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+        'Не удалось подтвердить удаление. Обновите историю перед повторной попыткой.',
+      )));
+      await _loadBrakHistory();
+    } finally {
+      if (mounted) setState(() => _deletingBrak = false);
+    }
+  }
+
   Widget _buildBrakHistory() {
     return RefreshIndicator(
       onRefresh: _loadBrakHistory,
@@ -145,29 +194,30 @@ ORDER BY mwz.ID DESC
           const SizedBox(height: 12),
           const Text('Отсканируй QR-код', textAlign: TextAlign.center),
           const SizedBox(height: 24),
-          Row(children: [
-            const Expanded(child: Text('Последние 10 записей',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
-            IconButton(
-              tooltip: 'Обновить историю',
-              onPressed: _historyLoading ? null : _loadBrakHistory,
-              icon: const Icon(Icons.refresh),
-            ),
-          ]),
+          const Text('Последние 10 записей',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           if (_historyLoading) const LinearProgressIndicator(),
           if (_historyError != null)
             Padding(padding: const EdgeInsets.all(16), child: Text(_historyError!)),
           if (!_historyLoading && _historyError == null && _brakHistory.isEmpty)
             const Padding(padding: EdgeInsets.all(16), child: Text('Записей пока нет')),
-          for (final row in _brakHistory)
-            Card(child: ListTile(
+          for (final (index, row) in _brakHistory.indexed) ...[
+            if (index > 0) const Divider(height: 1),
+            ListTile(
+              trailing: brakDeletionBlockedReason(row) != null ? null : IconButton(
+                tooltip: 'Удалить запись брака',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: _deletingBrak || _historyLoading
+                    ? null : () => _deleteBrak(row),
+              ),
               title: Text('Заказ №${row['MAGAZINEID']} · ${row['ART_MATERIAL'] ?? 'Без артикула'}'),
               subtitle: Text([
                 if (row['NAME'] != null) row['NAME'].toString(),
                 'Количество: ${row['KOLVO']} · ${_historyDate(row['DATEINSERT'])}',
                 if ((row['PRIM'] ?? '').toString().trim().isNotEmpty) row['PRIM'].toString(),
               ].join('\n')),
-            )),
+            ),
+          ],
         ],
       ),
     );
