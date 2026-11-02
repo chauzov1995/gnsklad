@@ -11,6 +11,7 @@ import 'package:gnsklad/tehhclass.dart';
 import 'package:gnsklad/update_service.dart';
 
 import 'brak.dart';
+import 'warehouse_photos.dart';
 import 'OrderOperationPage.dart';
 import 'navigation_settings.dart';
 
@@ -22,6 +23,7 @@ void main() async {
   // Obtain a list of the available cameras on the device.
   _cameras = await availableCameras();
   tehhclass.database = await tehhclass.initbd(); //инициализируем бд
+  await WarehouseQueue.start();
   runApp(MyApp());
 }
 
@@ -163,6 +165,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
+      WarehouseQueue.instance.kick();
       updateService.checkForUpdate(context);
     }
   }
@@ -182,7 +185,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     return Scaffold(
       body: IndexedStack(children: <Widget>[
         postavshikir(_cameras),
-        fotosklad(_cameras),
+        WarehousePhotosPage(_cameras),
         tars(),
         brak(_cameras),
         profile(

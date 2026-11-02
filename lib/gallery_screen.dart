@@ -6,7 +6,8 @@ import 'package:photo_view/photo_view_gallery.dart';
 class GalleryScreen extends StatefulWidget {
   List<File> images;
 
-  GalleryScreen({Key? key, required this.images}) : super(key: key);
+  final bool readOnly;
+  GalleryScreen({Key? key, required this.images, this.readOnly = false}) : super(key: key);
 
   @override
   _GalleryScreenState createState() => _GalleryScreenState();
@@ -40,7 +41,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       appBar: AppBar(
         title: const Text('Предпросмотр'),
         actions: <Widget>[
-          IconButton(
+          if (!widget.readOnly) IconButton(
             icon: const Icon(
               Icons.delete_forever,
               //color: Colors.black,

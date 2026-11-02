@@ -3,13 +3,10 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:gnsklad/main.dart';
+import 'warehouse_photos.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-
-import 'package:pdf/widgets.dart' as pw;
 
 import 'gallery_screen.dart';
 
@@ -18,16 +15,16 @@ class camera_screen_sklad extends StatefulWidget {
   String name;
   int politon = 0;
   bool brak = false;
-  String iddetal="";
+  String iddetal = "";
 
-  camera_screen_sklad({
-    Key? key,
-    required this.name,
-    required this.cameras,
-    this.politon = 0,
-    this.brak = false,
-    this.iddetal=""
-  }) : super(key: key);
+  camera_screen_sklad(
+      {Key? key,
+      required this.name,
+      required this.cameras,
+      this.politon = 0,
+      this.brak = false,
+      this.iddetal = ""})
+      : super(key: key);
 
   @override
   _camera_screen_skladState createState() => _camera_screen_skladState();
@@ -39,7 +36,7 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
     initializeCamera(selectedCamera); //Initially selectedCamera = 0
 
     super.initState();
-    fistasdib();
+    if (widget.brak) fistasdib();
   }
 
   fistasdib() async {
@@ -89,47 +86,43 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
 
   bool animphoto = false;
 
-  final double _kPickerSheetHeight = 350.0;
-
-
-  Future<void> pickImages() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
-    );
-
-    if (result != null) {
-      setState(() {
-        capturedImages.addAll(
-          result.paths.map((path) => File(path!)).toList(),
-        );
-      });
+  final List<PhotoJob> staged = [];
+  Future<void> remember(File f) async {
+    if (widget.brak) {
+      capturedImages.add(f);
+    } else {
+      final job =
+          await WarehouseQueue.instance.stage(widget.name, widget.politon, f);
+      staged.add(job);
+      capturedImages.add(job.draft);
     }
   }
 
-  Widget _buildBottomPicker(Widget picker) {
-    return Container(
-      height: _kPickerSheetHeight,
-      padding: const EdgeInsets.only(top: 6.0),
-      color: CupertinoColors.white,
-      child: DefaultTextStyle(
-        style: const TextStyle(
-          color: CupertinoColors.black,
-          fontSize: 22.0,
-        ),
-        child: GestureDetector(
-          // Blocks taps from propagating to the modal sheet and popping.
-          onTap: () {},
-          child: SafeArea(
-            top: false,
-            child: picker,
-          ),
-        ),
-      ),
-    );
+  void cameraError() {
+    if (mounted)
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Не удалось сохранить снимок. Проверьте свободное место на устройстве.')));
   }
 
-  DateTime dateTime = DateTime.now();
+  Future<void> pickImages() async {
+    if (animphoto) return;
+    setState(() => animphoto = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+          type: widget.brak ? FileType.image : FileType.custom,
+          allowedExtensions:
+              widget.brak ? null : ['jpg', 'jpeg', 'png', 'webp'],
+          allowMultiple: true);
+      for (final path in result?.paths ?? <String?>[]) {
+        if (path != null) await remember(File(path));
+      }
+    } catch (_) {
+      cameraError();
+    } finally {
+      if (mounted) setState(() => animphoto = false);
+    }
+  }
 
   Future<void> delaydoto() async {
     {
@@ -140,59 +133,20 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
         animphoto = true;
       });
 
-      await _initializeControllerFuture;
-      var xFile = await _controller.takePicture();
-      setState(() {
-        capturedImages.add(File(xFile.path));
-      });
-
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      print("sfotal2");
-
-      setState(() {
-        animphoto = false;
-      });
-
-/*
-                    if(animphoto)return;
-                    setState(() {
-                      animphoto=true;
-                    });
-                    await _initializeControllerFuture;
-                    var xFile = await _controller.takePicture();
-                    setState(() {
-                      capturedImages.add(File(xFile.path));
-                    });
-                    print("sfotal");
-
-                    await Future.delayed(Duration(milliseconds: 500));
-
-                    print("sfotal2");
-
-
-                    setState(() {
-                      animphoto=false;
-                    });
-                 //   return;
-                    var postUri = Uri.parse("https://teplogico.ru/gn0/${widget.name.id}");
-
-                    http.MultipartRequest request =
-                        new http.MultipartRequest("POST", postUri);
-
-                    http.MultipartFile multipartFile =
-                        await http.MultipartFile.fromPath(
-                            'file_input', xFile.path);
-
-                    request.files.add(multipartFile);
-
-                    http.StreamedResponse response = await request.send();
-
-                    print(response.statusCode);
-                    print(await File(xFile.path).exists());
-                    await File(xFile.path).delete();
-                    print(await File(xFile.path).exists());
-                    */
+      try {
+        await _initializeControllerFuture;
+        final picture = await _controller.takePicture();
+        await remember(File(picture.path));
+        if (!widget.brak) {
+          try {
+            await File(picture.path).delete();
+          } on FileSystemException {/* OS cache cleanup */}
+        }
+      } catch (_) {
+        cameraError();
+      } finally {
+        if (mounted) setState(() => animphoto = false);
+      }
     }
   }
 
@@ -219,7 +173,7 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
               style: TextButton.styleFrom(
                 textStyle: Theme.of(context).textTheme.labelLarge,
               ),
-              child: const Text('Закрыть'),
+              child: Text(widget.brak ? 'Закрыть' : 'Сохранить и закрыть'),
               onPressed: () {
                 Navigator.pop(context, true);
               },
@@ -238,10 +192,13 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
           if (didPop) {
             return;
           }
+          if (animphoto) return;
           bool shouldPop = true;
           if (!capturedImages.isEmpty) {
             shouldPop = await _showBackDialog() ?? false;
           }
+          if (!widget.brak && shouldPop)
+            await WarehouseQueue.instance.confirm(staged);
           if (context.mounted && shouldPop) {
             Navigator.pop(context);
           }
@@ -331,17 +288,19 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
                           animphoto = true;
                         });
 
-                        //   List<http.MultipartFile> multipartFiles = [];
-
-                        for (var elem in capturedImages) {
-                          //    multipartFiles.add(multipartFile);
-
-                          var postUri = Uri.parse(
-                              "https://teplogico.ru/gn/${widget.name}/${widget.politon}");
-                          if (widget.brak) {
-                            postUri = Uri.parse(
-                                "https://teplogico.ru/gnbrak/${widget.name}/${widget.iddetal}");
+                        if (!widget.brak) {
+                          try {
+                            await WarehouseQueue.instance.confirm(staged);
+                            if (context.mounted) Navigator.pop(context);
+                          } catch (_) {
+                            cameraError();
+                            if (mounted) setState(() => animphoto = false);
                           }
+                          return;
+                        }
+                        for (var elem in capturedImages) {
+                          final postUri = Uri.parse(
+                              "https://teplogico.ru/gnbrak/${widget.name}/${widget.iddetal}");
                           http.MultipartRequest request =
                               http.MultipartRequest("POST", postUri);
 
@@ -353,7 +312,7 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
 
                           http.StreamedResponse response = await request.send();
                           print(response.statusCode);
-                         // print(response.);
+                          // print(response.);
                         }
                         capturedImages.clear();
 
@@ -364,20 +323,6 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
                         });
 
                         Navigator.pop(context);
-
-                        return;
-                        if (widget.cameras.length > 1) {
-                          setState(() {
-                            selectedCamera = selectedCamera == 0 ? 1 : 0;
-                            initializeCamera(selectedCamera);
-                          });
-                        } else {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(
-                            content: Text('No secondary camera found'),
-                            duration: Duration(seconds: 2),
-                          ));
-                        }
                       },
                       icon: const Icon(
                         Icons.check_circle_sharp,
@@ -407,8 +352,9 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) =>
-                                    GalleryScreen(images: capturedImages)));
+                                builder: (context) => GalleryScreen(
+                                    images: capturedImages,
+                                    readOnly: !widget.brak)));
                       },
                       child: Container(
                         height: 60,
