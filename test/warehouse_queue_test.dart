@@ -16,6 +16,45 @@ void main() {
   tearDown(() async {
     await tmp.delete(recursive: true);
   });
+  test(
+      'discarded draft never returns after recovery; confirmed jobs cannot be discarded',
+      () async {
+    final q = WarehouseQueue(Directory('${tmp.path}/q'),
+        deliver: (_) async => throw const SocketException('offline'));
+    await q.recover();
+    final discarded = await q.stage('12345', 0, source);
+    final kept = await q.stage('12345', 0, source);
+    await q.discardDraft(discarded);
+    await q.recover();
+    expect((await q.jobs()).single.id, kept.id);
+    expect(await source.exists(), true);
+    await expectLater(q.discardDraft(kept), throwsA(isA<PhotoProblem>()));
+    await q.drain();
+    expect((await q.jobs()).single.id, kept.id);
+  });
+  test(
+      'interrupted discard is excluded from recovery even with source metadata',
+      () async {
+    final q = WarehouseQueue(Directory('${tmp.path}/q'));
+    await q.recover();
+    final j = await q.stage('12345', 0, source);
+    await j.dir.rename('${j.dir.path}.discarded');
+    await q.recover();
+    expect(await q.jobs(), isEmpty);
+  });
+  test('only a matching server deletion confirmation removes a pending file',
+      () async {
+    final q = WarehouseQueue(Directory('${tmp.path}/q'),
+        deliver: (j) async => throw PhotoCancelled(
+            j.order == '12345' ? j.order : '00000', '${j.order}_${j.id}.jpg'));
+    await q.recover();
+    await q.stage('12345', 0, source);
+    final keep = await q.stage('54321', 0, source);
+    await q.recover();
+    await q.drain();
+    expect((await q.jobs()).single.id, keep.id);
+    expect(await keep.file.exists(), true);
+  });
   for (final fault in [
     const SocketException('Wi-Fi disconnected'),
     const PhotoProblem('HTTP 500'),
@@ -113,7 +152,8 @@ void main() {
     await ready.future.timeout(const Duration(seconds: 10));
     final q = WarehouseQueue(Directory('${tmp.path}/queue'));
     await q.recover();
-    final j = await q.stage('12345', 1, source);
+    final j = await q.stage('12345', 1, source,
+        capturedAt: DateTime.now().millisecondsSinceEpoch);
     await q.recover();
     await PhotoApi.upload(j);
     await PhotoApi.upload(j);
@@ -122,9 +162,27 @@ void main() {
     final jpeg =
         await PhotoApi.request('${PhotoApi.listPath('12345')}/${names.single}');
     expect(jpeg.take(2), [255, 216]);
+    await PhotoApi.delete(j.order, names.single);
+    await PhotoApi.delete(j.order, names.single);
+    expect(await PhotoApi.list(j.order), isEmpty);
+    await expectLater(PhotoApi.upload(j), throwsA(isA<PhotoCancelled>()));
     await q.drain();
     expect(await q.jobs(), isEmpty);
   }, skip: Platform.environment['WAREHOUSE_TEST_JS'] == null);
+  test(
+      'capture time survives queue recovery; imported images have no capture date',
+      () async {
+    final q = WarehouseQueue(Directory('${tmp.path}/q'));
+    await q.recover();
+    final taken =
+        DateTime.now().subtract(const Duration(days: 2)).millisecondsSinceEpoch;
+    final camera = await q.stage('12345', 0, source, capturedAt: taken);
+    final imported = await q.stage('12345', 0, source);
+    await q.recover();
+    expect(jsonDecode(await camera.source.readAsString())['capturedAt'], taken);
+    expect(
+        jsonDecode(await imported.source.readAsString())['capturedAt'], isNull);
+  });
   test('real TLS transport rejects 500, disconnect, timeout and false receipt',
       () async {
     expect(PhotoApi.base, 'https://127.0.0.1:3443');
@@ -148,11 +206,20 @@ void main() {
         socket.destroy();
         return;
       }
-      req.response.statusCode = req.uri.path == '/error' ? 500 : 200;
-      req.response.write('{}');
+      req.response.statusCode = req.uri.path == '/error'
+          ? 500
+          : req.uri.path == '/age'
+              ? 403
+              : 200;
+      req.response
+          .write(req.uri.path == '/age' ? '{"error":"photo_too_old"}' : '{}');
       await req.response.close();
     });
     await expectLater(PhotoApi.request('/error'), throwsA(isA<PhotoProblem>()));
+    await expectLater(
+        PhotoApi.request('/age', method: 'DELETE'),
+        throwsA(isA<PhotoProblem>()
+            .having((e) => e.message, 'message', contains('24'))));
     await expectLater(PhotoApi.request('/drop'),
         throwsA(anyOf(isA<HttpException>(), isA<SocketException>())));
     await expectLater(

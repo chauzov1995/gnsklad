@@ -87,12 +87,12 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
   bool animphoto = false;
 
   final List<PhotoJob> staged = [];
-  Future<void> remember(File f) async {
+  Future<void> remember(File f, {int? capturedAt}) async {
     if (widget.brak) {
       capturedImages.add(f);
     } else {
-      final job =
-          await WarehouseQueue.instance.stage(widget.name, widget.politon, f);
+      final job = await WarehouseQueue.instance
+          .stage(widget.name, widget.politon, f, capturedAt: capturedAt);
       staged.add(job);
       capturedImages.add(job.draft);
     }
@@ -135,8 +135,9 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
 
       try {
         await _initializeControllerFuture;
+        final capturedAt = DateTime.now().millisecondsSinceEpoch;
         final picture = await _controller.takePicture();
-        await remember(File(picture.path));
+        await remember(File(picture.path), capturedAt: capturedAt);
         if (!widget.brak) {
           try {
             await File(picture.path).delete();
@@ -346,15 +347,24 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        if (capturedImages.isEmpty) return;
-                        print(capturedImages[0]);
-                        Navigator.push(
+                      onTap: () async {
+                        if (capturedImages.isEmpty || animphoto) return;
+                        await Navigator.push(
                             context,
                             MaterialPageRoute(
                                 builder: (context) => GalleryScreen(
                                     images: capturedImages,
-                                    readOnly: !widget.brak)));
+                                    onDelete: widget.brak
+                                        ? null
+                                        : (file) async {
+                                            final job = staged.singleWhere(
+                                                (j) =>
+                                                    j.draft.path == file.path);
+                                            await WarehouseQueue.instance
+                                                .discardDraft(job);
+                                            staged.remove(job);
+                                          })));
+                        if (mounted) setState(() {});
                       },
                       child: Container(
                         height: 60,

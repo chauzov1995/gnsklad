@@ -13,10 +13,36 @@ Android Gradle Plugin 8.11.1 и Kotlin 2.2.20. Нужны Android SDK 36
 ```powershell
 flutter config --jdk-dir "C:\path\to\jdk-21"
 flutter pub get
-flutter build apk --debug --target-platform android-arm64
 flutter devices
-flutter run -d 2706086
+flutter run
+flutter build apk
+flutter build apk --release
 ```
+
+Обычные debug/release-сборки и кнопка Run в Android Studio автоматически
+используют `lib/warehouse_photo_config.local.dart`. Файл содержит действующие
+адрес фабричного HTTPS-сервиса, токен и доверенный CA и исключён из Git.
+Дополнительные аргументы Run Configuration не нужны. На этом компьютере
+файл уже подготовлен; доступ к серверной папке при каждой сборке не требуется.
+
+На новом рабочем месте **один раз** создайте локальный файл из существующей
+рабочей конфигурации (нужен Python 3 только для этой операции):
+
+```powershell
+python scripts\setup_warehouse_config.py --source "\\172.16.4.104\C$\GNSkladWarehouse\photo-config\photo-build.json"
+```
+
+Можно указать защищённую локальную копию того же JSON. Утилита проверяет Git-ignore
+и параметры, не печатает секреты и не перезаписывает существующий файл.
+Не создавайте новые токены или сертификаты. При отсутствии локального Dart-файла
+Android-сборка останавливается с явным сообщением и командой однократной настройки;
+обязательный Dart-import также не позволяет собрать приложение без конфигурации.
+
+Скрипт `warehouse_flutter.py` не собирает и не запускает приложение.
+Он оставлен только для необязательной проверки готового APK:
+`python scripts\warehouse_flutter.py verify`.
+USB не заменяет подключение к фабричной LAN.
+Фотографии используют только `https://172.16.4.104:3443`.
 
 Параметр `--jdk-dir` сохраняется в настройках Flutter текущего пользователя.
 После его изменения перезапустите Android Studio. Если проект Android открыт
@@ -37,7 +63,7 @@ Android Studio запускает оболочку Gradle своей встро�
 
 Для Gradle выделено до 4 ГБ памяти и ограничено число параллельных задач
 до двух: прежнего лимита 1,5 ГБ не хватало для обработки библиотек Flutter.
-Приведённая команда собирает APK для ARM64, используемой на 70 Series.
+Обычная APK-сборка включает ARM64, используемую на 70 Series.
 
 Если Java выдаёт `Unable to establish loopback connection` с причиной
 `UnixDomainSockets.connect: Invalid argument`, проверьте отдельный каталог

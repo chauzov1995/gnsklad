@@ -90,13 +90,28 @@ class _WarehouseState extends State<WarehousePhotosPage> {
   Widget preview(Widget image) => Scaffold(
       appBar: AppBar(title: Text('Заказ $order')),
       body: Center(child: InteractiveViewer(maxScale: 5, child: image)));
-  Widget tile(String label, Widget thumb, Widget Function() full) => InkWell(
-      onTap: () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => preview(full()))),
-      child: Column(children: [
-        Expanded(child: thumb),
-        Text(label, maxLines: 3, overflow: TextOverflow.ellipsis)
-      ]));
+  Widget tile(Widget thumb, Widget Function() full, {String? archiveName}) =>
+      InkWell(
+          onTap: () async {
+            await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => archiveName == null
+                        ? preview(full())
+                        : _ArchivePreview(order, archiveName)));
+            if (mounted) await refresh();
+          },
+          child: ClipRect(child: SizedBox.expand(child: thumb)));
+
+  Widget localTile(PhotoJob job) {
+    final image = File(job.file.existsSync() ? job.file.path : job.draft.path);
+    Widget pic({bool small = false}) => Image.file(image,
+        cacheWidth: small ? 260 : null,
+        fit: small ? BoxFit.cover : BoxFit.contain,
+        errorBuilder: (_, __, ___) => const Icon(Icons.image));
+    return tile(pic(small: true), () => pic());
+  }
+
   @override
   Widget build(BuildContext context) {
     final valid = WarehouseQueue.orderPattern.hasMatch(order);
@@ -143,31 +158,23 @@ class _WarehouseState extends State<WarehousePhotosPage> {
                               BorderRadius.all(Radius.circular(25)))))),
           if (order.isNotEmpty && !valid) const Text('Проверьте номер заказа'),
           if (notice.isNotEmpty) Text(notice),
-          if (valid) const Text('Архив фабрики и очередь этого устройства'),
           Expanded(
-              child: GridView.count(crossAxisCount: 3, children: [
-            for (final j in local)
-              FutureBuilder<Map>(
-                  future: j.state(),
-                  builder: (context, s) {
-                    final image =
-                        File(j.file.existsSync() ? j.file.path : j.draft.path);
-                    Widget pic([int? w]) => Image.file(image,
-                        cacheWidth: w,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.image));
-                    return tile(
-                        s.data?['error']?.toString() ?? 'Ожидает отправки',
-                        pic(260),
-                        () => pic());
-                  }),
-            for (final n in names)
-              if (!local.any((j) => n == '${j.order}_${j.id}.jpg'))
-                tile(
-                    'На фабрике',
-                    _RemotePhoto(order, n,
-                        small: true, key: ValueKey('$order/$n')),
-                    () => _RemotePhoto(order, n))
-          ]))
+              child: GridView.count(
+                  crossAxisCount: 3,
+                  childAspectRatio: 1,
+                  padding: const EdgeInsets.all(2),
+                  mainAxisSpacing: 2,
+                  crossAxisSpacing: 2,
+                  children: [
+                for (final j in local) localTile(j),
+                for (final n in names)
+                  if (!local.any((j) => n == '${j.order}_${j.id}.jpg'))
+                    tile(
+                        _RemotePhoto(order, n,
+                            small: true, key: ValueKey('$order/$n')),
+                        () => _RemotePhoto(order, n),
+                        archiveName: n)
+              ]))
         ]),
         floatingActionButton: !valid
             ? null
@@ -183,6 +190,69 @@ class _WarehouseState extends State<WarehousePhotosPage> {
                   if (mounted) refresh();
                 }));
   }
+}
+
+class _ArchivePreview extends StatefulWidget {
+  final String order, name;
+  const _ArchivePreview(this.order, this.name);
+  @override
+  State<_ArchivePreview> createState() => _ArchivePreviewState();
+}
+
+class _ArchivePreviewState extends State<_ArchivePreview> {
+  bool deleting = false;
+  Future<void> remove() async {
+    final yes = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+              title: const Text('Удалить снимок?'),
+              content: Text(
+                  'Снимок будет удалён из архива заказа ${widget.order}, включая его копию для политона, если она есть.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Отмена')),
+                TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Удалить')),
+              ],
+            ));
+    if (yes != true || !mounted) return;
+    setState(() => deleting = true);
+    try {
+      await PhotoApi.delete(widget.order, widget.name);
+      if (mounted) {
+        setState(() => deleting = false);
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => deleting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e is PhotoProblem
+                ? e.message
+                : 'Нет подтверждения удаления. Проверьте связь и повторите.')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+      canPop: !deleting,
+      child: Scaffold(
+        appBar: AppBar(title: Text('Заказ ${widget.order}'), actions: [
+          IconButton(
+              tooltip: 'Удалить снимок',
+              onPressed: deleting ? null : remove,
+              icon: const Icon(Icons.delete_outline)),
+        ]),
+        body: deleting
+            ? const Center(child: CircularProgressIndicator())
+            : Center(
+                child: InteractiveViewer(
+                    maxScale: 5,
+                    child: _RemotePhoto(widget.order, widget.name))),
+      ));
 }
 
 class _RemotePhoto extends StatefulWidget {
@@ -203,7 +273,8 @@ class _RemoteState extends State<_RemotePhoto> {
         if (s.hasError) return const Icon(Icons.broken_image);
         if (!s.hasData) return const Center(child: CircularProgressIndicator());
         return Image.memory(s.data!,
-            cacheWidth: widget.small ? 260 : null, fit: BoxFit.contain);
+            cacheWidth: widget.small ? 260 : null,
+            fit: widget.small ? BoxFit.cover : BoxFit.contain);
       });
 }
 

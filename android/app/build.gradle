@@ -4,6 +4,16 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// Mandatory local import: do not silently produce an APK without photo access.
+if (!rootProject.file('../lib/warehouse_photo_config.local.dart').isFile()) {
+    throw new GradleException(
+        'Missing lib/warehouse_photo_config.local.dart. ' +
+        'One-time setup from the existing private configuration: ' +
+        'python scripts/setup_warehouse_config.py --source PATH_TO_photo-build.json ' +
+        '(run from the Flutter project directory). See README.md. No APK was built.'
+    )
+}
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {

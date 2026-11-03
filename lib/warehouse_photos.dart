@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'warehouse_photo_config.local.dart' as photo_config;
 
 // Bypass the legacy global permissive TLS override.
 class _Strict extends HttpOverrides {}
@@ -17,13 +18,20 @@ class PhotoProblem implements Exception {
   String toString() => message;
 }
 
+class PhotoCancelled implements Exception {
+  final String order, name;
+  const PhotoCancelled(this.order, this.name);
+}
+
 class PhotoApi {
   static const base = String.fromEnvironment('PHOTO_BASE',
-      defaultValue: 'https://172.16.4.104:3443');
-  static const token = String.fromEnvironment('PHOTO_TOKEN');
-  static const ca = String.fromEnvironment('PHOTO_CA_B64');
+      defaultValue: photo_config.warehousePhotoBase);
+  static const token = photo_config.warehousePhotoToken;
+  static const ca = photo_config.warehousePhotoCa;
   static Future<Uint8List> request(String path,
-      {File? file, Duration deadline = const Duration(seconds: 55)}) async {
+      {File? file,
+      String? method,
+      Duration deadline = const Duration(seconds: 55)}) async {
     final uri = Uri.parse('$base$path');
     if (token.length < 32 || uri.scheme != 'https') {
       throw const PhotoProblem('Не настроен защищённый доступ к фотосервису');
@@ -35,7 +43,8 @@ class PhotoApi {
     client.connectionTimeout = const Duration(seconds: 5);
     try {
       return await (() async {
-        final req = await client.openUrl(file == null ? 'GET' : 'PUT', uri);
+        final req =
+            await client.openUrl(method ?? (file == null ? 'GET' : 'PUT'), uri);
         req.followRedirects = false;
         req.headers.set('Authorization', 'Bearer $token');
         if (file != null) {
@@ -52,11 +61,28 @@ class PhotoApi {
           }
         }
         final bytes = b.takeBytes();
+        if (res.statusCode == 410 && file != null) {
+          final r = jsonDecode(utf8.decode(bytes));
+          if (r is Map &&
+              r['error'] == 'photo_deleted' &&
+              r['order'] is String &&
+              r['name'] is String) {
+            throw PhotoCancelled(r['order'], r['name']);
+          }
+        }
         if (res.statusCode != 200 && res.statusCode != 201) {
           String code = '';
           try {
             code = jsonDecode(utf8.decode(bytes))['error'] as String;
           } catch (_) {}
+          if (code == 'photo_too_old') {
+            throw const PhotoProblem(
+                'Удалить фото можно только в течение 24 часов после съёмки.');
+          }
+          if (code == 'photo_date_unknown') {
+            throw const PhotoProblem(
+                'У этого фото не сохранена дата съёмки, поэтому удалить его нельзя.');
+          }
           const reasons = {
             'ambiguous_order': 'несколько папок заказа',
             'order_missing': 'нет папки заказа',
@@ -65,6 +91,8 @@ class PhotoApi {
             'file_conflict': 'конфликт архивной копии',
             'id_conflict': 'конфликт идентификатора',
             'order_moved': 'папка заказа перемещена',
+            'upload_busy': 'снимок ещё обрабатывается, повторите удаление',
+            'not_found': 'снимок не найден',
             'too_large': 'слишком большой файл'
           };
           throw PhotoProblem(
@@ -79,13 +107,30 @@ class PhotoApi {
   }
 
   static String listPath(String order) => '/v1/warehouse/$order/photos';
+  static Future<void> delete(String order, String name) async {
+    final r = jsonDecode(utf8.decode(await request(
+        '${listPath(order)}/${Uri.encodeComponent(name)}',
+        method: 'DELETE')));
+    if (r is! Map ||
+        r['deleted'] != true ||
+        r['order'] != order ||
+        r['name'] != name) {
+      throw const PhotoProblem('Сервер не подтвердил удаление снимка');
+    }
+  }
+
   static Future<List<String>> list(String order) async =>
       (jsonDecode(utf8.decode(await request(listPath(order)))) as List)
           .cast<String>();
   static Future<void> upload(PhotoJob j) async {
+    int? capturedAt;
+    try {
+      final metadata = jsonDecode(await j.source.readAsString());
+      if (metadata['capturedAt'] is int) capturedAt = metadata['capturedAt'];
+    } catch (_) {/* Older queue entries have no verified capture timestamp. */}
     final expected = (await sha256.bind(j.file.openRead()).first).toString();
     final r = jsonDecode(utf8.decode(await request(
-        '${listPath(j.order)}/${j.id}?politon=${j.politon}',
+        '${listPath(j.order)}/${j.id}?politon=${j.politon}${capturedAt == null ? '' : '&capturedAt=$capturedAt'}',
         file: j.file)));
     if (r is! Map ||
         r['saved'] != true ||
@@ -197,7 +242,8 @@ class WarehouseQueue extends ChangeNotifier {
     }
   }
 
-  Future<PhotoJob> stage(String order, int politon, File source) async {
+  Future<PhotoJob> stage(String order, int politon, File source,
+      {int? capturedAt}) async {
     if (!orderPattern.hasMatch(order) || (politon != 0 && politon != 1)) {
       throw const PhotoProblem('Неверный заказ');
     }
@@ -213,7 +259,11 @@ class WarehouseQueue extends ChangeNotifier {
     await j.dir.create();
     final tmp = File('${j.dir.path}/writing');
     await j.source.writeAsString(
-        jsonEncode({'path': source.path, 'size': await source.length()}),
+        jsonEncode({
+          'path': source.path,
+          'size': await source.length(),
+          'capturedAt': capturedAt
+        }),
         flush: true);
     await _copy(source, tmp);
     if (await tmp.length() != await source.length()) {
@@ -230,6 +280,24 @@ class WarehouseQueue extends ChangeNotifier {
     }
     notifyListeners();
     kick();
+  }
+
+  Future<void> discardDraft(PhotoJob job) async {
+    final parent = await job.dir.parent.resolveSymbolicLinks();
+    if (parent != await root.resolveSymbolicLinks() ||
+        await FileSystemEntity.isLink(job.dir.path) ||
+        await job.file.exists() ||
+        !await job.draft.exists()) {
+      throw const PhotoProblem('Этот снимок уже передан в очередь отправки');
+    }
+    // Atomic rename makes the user's choice survive a crash during cleanup.
+    final discarded = await job.dir.rename('${job.dir.path}.discarded');
+    notifyListeners();
+    try {
+      await discarded.delete(recursive: true);
+    } on FileSystemException {
+      // This directory is deliberately excluded from recovery and uploads.
+    }
   }
 
   void kick() {
@@ -253,6 +321,14 @@ class WarehouseQueue extends ChangeNotifier {
           await j.dir.delete(recursive: true);
           debugPrint('warehouse saved ${j.order} ${j.id}');
         } catch (e) {
+          if (e is PhotoCancelled &&
+              e.order == j.order &&
+              e.name == '${j.order}_${j.id}.jpg') {
+            await j.dir.delete(recursive: true);
+            debugPrint('warehouse deletion confirmed ${j.order} ${j.id}');
+            notifyListeners();
+            continue;
+          }
           final count = (prev['count'] as int? ?? 0) + 1;
           final message = e is PhotoProblem
               ? e.message
