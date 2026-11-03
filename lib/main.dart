@@ -189,7 +189,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       body: IndexedStack(children: <Widget>[
         postavshikir(_cameras),
         WarehousePhotosPage(_cameras),
-        tars(),
+        tars(active: tehhclass.selectedIndex == 2, userId: tehhclass.user_id),
         brak(_cameras),
         profile(
             onOpenSection: _onItemTapped,
