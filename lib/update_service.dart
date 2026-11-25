@@ -15,18 +15,27 @@ class UpdateRelease {
   final int? build;
   const UpdateRelease(this.version, this.build);
 
-  factory UpdateRelease.parse(String body) {
+  factory UpdateRelease.parse(String body, {bool factoryManifest = false}) {
     final text = body.trim();
     String version;
     int? build;
     if (text.startsWith('{')) {
-      final data = jsonDecode(text) as Map<String, dynamic>;
+      final data = jsonDecode(text);
+      if (data is! Map<String, dynamic> ||
+          data['version'] is! String ||
+          (factoryManifest &&
+              data['applicationId'] != 'com.nchauzov.gn.gnsklad')) {
+        throw const FormatException('Некорректное описание обновления');
+      }
       version = data['version'] as String;
       build = int.tryParse('${data['build']}');
       if (build == null || build <= 0) {
         throw const FormatException('Некорректный номер сборки');
       }
     } else {
+      if (factoryManifest) {
+        throw const FormatException('Ожидался манифест Склада');
+      }
       version = text;
     }
     if (!RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version)) {
@@ -47,12 +56,72 @@ class UpdateRelease {
   }
 }
 
+enum UpdateSource {
+  factory('http://172.16.4.104/apps/release.json',
+      'http://172.16.4.104/apps/sklad.apk'),
+  ecad('https://ecad.giulianovars.ru/appsklad/version.php?format=json',
+      'https://ecad.giulianovars.ru/appsklad/app-release.apk');
+
+  const UpdateSource(this.manifestUrl, this.apkUrl);
+  final String manifestUrl;
+  final String apkUrl;
+}
+
+Uri _freshUri(String url) {
+  final uri = Uri.parse(url);
+  return uri.replace(queryParameters: {
+    ...uri.queryParameters,
+    't': DateTime.now().millisecondsSinceEpoch.toString(),
+  });
+}
+
+Future<UpdateRelease> _fetchRelease(
+    http.Client client, UpdateSource source) async {
+  final request = http.Request('GET', _freshUri(source.manifestUrl))
+    ..followRedirects = false
+    ..headers['Cache-Control'] = 'no-cache';
+  final response = await client.send(request);
+  if (response.statusCode != 200) {
+    throw HttpException('HTTP ${response.statusCode}');
+  }
+  final bytes = <int>[];
+  await for (final chunk in response.stream) {
+    if (bytes.length + chunk.length > 4096) {
+      throw const FormatException('Слишком большой манифест');
+    }
+    bytes.addAll(chunk);
+  }
+  return UpdateRelease.parse(utf8.decode(bytes),
+      factoryManifest: source == UpdateSource.factory);
+}
+
+typedef AvailableUpdate = ({UpdateSource source, UpdateRelease release});
+
+Future<AvailableUpdate> findUpdate(http.Client Function() createClient,
+    {Duration factoryTimeout = const Duration(seconds: 3)}) async {
+  for (final source in UpdateSource.values) {
+    final client = createClient();
+    try {
+      final release = await _fetchRelease(client, source).timeout(
+          source == UpdateSource.factory
+              ? factoryTimeout
+              : const Duration(seconds: 15));
+      return (source: source, release: release);
+    } on Exception {
+      if (source == UpdateSource.ecad) rethrow;
+    } finally {
+      client.close();
+    }
+  }
+  throw StateError('Не задан источник обновлений');
+}
+
 // Streaming keeps large APKs out of memory. Failed transfers leave no partial file.
 Future<void> downloadUpdate(http.Client client, Uri uri, File file,
     void Function(double?) onProgress) async {
   try {
     final response = await client
-        .send(http.Request('GET', uri))
+        .send(http.Request('GET', uri)..followRedirects = false)
         .timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) {
       throw HttpException('Сервер вернул ${response.statusCode}');
@@ -83,7 +152,9 @@ Future<void> downloadUpdate(http.Client client, Uri uri, File file,
 
 class UpdateService {
   static const _channel = MethodChannel('gnsklad/updates');
-  static const _base = 'https://ecad.giulianovars.ru/appsklad';
+  // Other screens override HttpClient globally; ECAD must validate TLS.
+  static http.Client _createClient() => IOClient(
+      HttpClient()..badCertificateCallback = (cert, host, port) => false);
   bool _busy = false;
   DateTime? _lastCheck;
 
@@ -92,27 +163,21 @@ class UpdateService {
     if (!Platform.isAndroid || _busy) return;
     if (!force &&
         _lastCheck != null &&
-        DateTime.now().difference(_lastCheck!) < const Duration(minutes: 15))
+        DateTime.now().difference(_lastCheck!) < const Duration(minutes: 15)) {
       return;
+    }
     _busy = true;
     _lastCheck = DateTime.now();
-    // Other screens override HttpClient globally; updates always validate TLS.
-    final client = IOClient(
-        HttpClient()..badCertificateCallback = (cert, host, port) => false);
     try {
       final info = await PackageInfo.fromPlatform();
-      final response = await client.get(
-          Uri.parse(
-            '$_base/version.php?format=json&t=${DateTime.now().millisecondsSinceEpoch}',
-          ),
-          headers: {
-            'Cache-Control': 'no-cache'
-          }).timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200)
-        throw HttpException('HTTP ${response.statusCode}');
-      final release = UpdateRelease.parse(response.body);
+      final update = await findUpdate(_createClient);
+      final release = update.release;
+      debugPrint(
+          'Проверка обновлений: ${update.source.manifestUrl}, версия ${release.version}');
       if (!release.isNewerThan(info.version, int.parse(info.buildNumber)) ||
-          !context.mounted) return;
+          !context.mounted) {
+        return;
+      }
       final accepted = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -129,19 +194,24 @@ class UpdateService {
         ),
       );
       if (accepted == true && context.mounted) {
-        await _downloadAndInstall(context, client, release);
+        final client = _createClient();
+        try {
+          await _downloadAndInstall(context, client, update);
+        } finally {
+          client.close();
+        }
       }
     } catch (e) {
       // A failed background check must not block work or claim there are no updates.
       debugPrint('Не удалось проверить обновление: $e');
     } finally {
-      client.close();
       _busy = false;
     }
   }
 
   Future<void> _downloadAndInstall(
-      BuildContext context, http.Client client, UpdateRelease release) async {
+      BuildContext context, http.Client client, AvailableUpdate update) async {
+    final release = update.release;
     final progress = ValueNotifier<double?>(null);
     final navigator = Navigator.of(context, rootNavigator: true);
     final route = DialogRoute<void>(
@@ -169,11 +239,7 @@ class UpdateService {
     try {
       final dir = await getTemporaryDirectory();
       file = File('${dir.path}/update.apk');
-      await downloadUpdate(
-          client,
-          Uri.parse(
-              '$_base/app-release.apk?t=${DateTime.now().millisecondsSinceEpoch}'),
-          file,
+      await downloadUpdate(client, _freshUri(update.source.apkUrl), file,
           (value) => progress.value = value);
       // Verify the downloaded archive against this app and the installed build.
       await _channel.invokeMethod('validateApk', {

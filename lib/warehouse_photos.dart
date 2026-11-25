@@ -31,8 +31,6 @@ class PhotoApi {
   static Future<Uint8List> request(String path,
       {File? file,
       String? method,
-      ContentType? contentType,
-      int maxResponseBytes = 32 * 1024 * 1024,
       Duration deadline = const Duration(seconds: 55)}) async {
     final uri = Uri.parse('$base$path');
     if (token.length < 32 || uri.scheme != 'https') {
@@ -50,7 +48,7 @@ class PhotoApi {
         req.followRedirects = false;
         req.headers.set('Authorization', 'Bearer $token');
         if (file != null) {
-          req.headers.contentType = contentType ?? ContentType.binary;
+          req.headers.contentType = ContentType.binary;
           req.contentLength = await file.length();
           await req.addStream(file.openRead());
         }
@@ -58,7 +56,7 @@ class PhotoApi {
         final b = BytesBuilder(copy: false);
         await for (final chunk in res) {
           b.add(chunk);
-          if (b.length > maxResponseBytes) {
+          if (b.length > 32 * 1024 * 1024) {
             throw const PhotoProblem('Ответ слишком большой');
           }
         }
@@ -86,18 +84,6 @@ class PhotoApi {
                 'У этого фото не сохранена дата съёмки, поэтому удалить его нельзя.');
           }
           const reasons = {
-            'supplier_catalog_unavailable':
-                'справочник поставщиков ещё не подключён на фабрике',
-            'supplier_catalog_unverified':
-                'справочник поставщиков не подтверждён',
-            'ambiguous_supplier_catalog':
-                'совпадают папки разных поставщиков, требуется проверка справочника',
-            'supplier_not_found': 'поставщик отсутствует в справочнике фабрики',
-            'supplier_folder_changed':
-                'папка поставщика изменилась, требуется проверка',
-            'invalid_pdf': 'PDF повреждён или не поддерживается',
-            'invalid_document_metadata':
-                'неверная дата или идентификатор документа',
             'ambiguous_order': 'несколько папок заказа',
             'order_missing': 'нет папки заказа',
             'storage_unavailable': 'хранилище недоступно',

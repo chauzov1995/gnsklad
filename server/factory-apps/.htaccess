@@ -1,0 +1,18 @@
+Options -Indexes -ExecCGI -MultiViews
+Require all denied
+<FilesMatch "^(sklad\.apk|release\.json)$">
+    <RequireAll>
+        Require ip 172.16.0.0/16
+        Require method GET
+        Require expr "%{HTTP_HOST} == '172.16.4.104' || %{HTTP_HOST} == '172.16.4.104:80'"
+    </RequireAll>
+    Header set Cache-Control "no-store"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
+<Files "sklad.apk">
+    ForceType application/vnd.android.package-archive
+    Header set Content-Disposition "attachment; filename=sklad.apk"
+</Files>
+<Files "release.json">
+    ForceType application/json
+</Files>

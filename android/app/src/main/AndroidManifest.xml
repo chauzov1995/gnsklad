@@ -33,6 +33,7 @@
    <application
         android:label="Склад"
         android:name="${applicationName}"
+        android:networkSecurityConfig="@xml/update_network_security"
         android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"

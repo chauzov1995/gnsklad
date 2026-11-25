@@ -5,6 +5,79 @@ import 'package:http/testing.dart';
 import 'package:gnsklad/update_service.dart';
 
 void main() {
+  const factoryBody =
+      '{"applicationId":"com.nchauzov.gn.gnsklad","version":"1.0.23","build":23}';
+  test('factory metadata selects the QR APK even when already current',
+      () async {
+    var count = 0;
+    final update = await findUpdate(() => MockClient((request) async {
+          count++;
+          expect(request.url.host, '172.16.4.104');
+          expect(request.url.path, '/apps/release.json');
+          return http.Response(factoryBody, 200);
+        }));
+    expect(count, 1);
+    expect(update.source.apkUrl, 'http://172.16.4.104/apps/sklad.apk');
+    expect(update.release.isNewerThan('1.0.23', 23), isFalse);
+  });
+
+  for (final reason in [
+    'timeout',
+    'unreachable',
+    '404',
+    'redirect',
+    'portal',
+    'other app',
+    'invalid version'
+  ]) {
+    test('falls back to ECAD on $reason', () async {
+      final hosts = <String>[];
+      final update = await findUpdate(
+          () => MockClient((request) async {
+                hosts.add(request.url.host);
+                if (hosts.length == 2) {
+                  expect(request.url.scheme, 'https');
+                  expect(request.url.queryParameters['format'], 'json');
+                  return http.Response('1.0.25', 200);
+                }
+                switch (reason) {
+                  case 'timeout':
+                    await Future<void>.delayed(
+                        const Duration(milliseconds: 60));
+                    return http.Response(factoryBody, 200);
+                  case 'unreachable':
+                    throw const SocketException('offline');
+                  case '404':
+                    return http.Response('', 404);
+                  case 'redirect':
+                    return http.Response('', 302,
+                        headers: {'location': 'http://example.com/'});
+                  case 'portal':
+                    return http.Response('<html></html>', 200);
+                  case 'other app':
+                    return http.Response(
+                        factoryBody.replaceFirst(
+                            'com.nchauzov.gn.gnsklad', 'other.app'),
+                        200);
+                  default:
+                    return http.Response('1.2.3', 200);
+                }
+              }),
+          factoryTimeout: const Duration(milliseconds: 30));
+      expect(hosts, ['172.16.4.104', 'ecad.giulianovars.ru']);
+      expect(update.source.apkUrl,
+          'https://ecad.giulianovars.ru/appsklad/app-release.apk');
+      expect(update.release.isNewerThan('1.0.24', 24), isTrue);
+    });
+  }
+
+  test('both sources offline completes with an error', () async {
+    await expectLater(
+        findUpdate(() =>
+            MockClient((_) async => throw const SocketException('offline'))),
+        throwsA(isA<SocketException>()));
+  });
+
   test('build number detects rebuilds and prevents downgrade', () {
     final release = UpdateRelease.parse('{"version":"1.0.12","build":13}');
     expect(release.isNewerThan('1.0.12', 12), isTrue);

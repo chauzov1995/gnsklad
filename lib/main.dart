@@ -12,7 +12,6 @@ import 'package:gnsklad/update_service.dart';
 
 import 'brak.dart';
 import 'warehouse_photos.dart';
-import 'supplier_documents.dart';
 import 'OrderOperationPage.dart';
 import 'navigation_settings.dart';
 
@@ -25,7 +24,6 @@ void main() async {
   _cameras = await availableCameras();
   tehhclass.database = await tehhclass.initbd(); //инициализируем бд
   await WarehouseQueue.start();
-  await SupplierQueue.start();
   runApp(MyApp());
 }
 
@@ -168,7 +166,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       WarehouseQueue.instance.kick();
-      SupplierQueue.instance.kick();
       updateService.checkForUpdate(context);
     }
   }

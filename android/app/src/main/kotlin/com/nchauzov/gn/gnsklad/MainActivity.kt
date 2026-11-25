@@ -1,6 +1,7 @@
 package com.nchauzov.gn.gnsklad
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.PackageInfo
 import android.net.Uri
 import android.os.Build
@@ -20,10 +21,16 @@ class MainActivity: FlutterActivity() {
                     when (call.method) {
                         "validateApk" -> {
                             val path = call.argument<String>("path") ?: error("Не указан файл APK")
-                            val apk = packageManager.getPackageArchiveInfo(path, 0)
+                            @Suppress("DEPRECATION")
+                            val signatureFlags = PackageManager.GET_SIGNATURES
+                            val apk = packageManager.getPackageArchiveInfo(path, signatureFlags)
                                 ?: error("Сервер вернул повреждённый APK или другой файл")
-                            val installed = packageManager.getPackageInfo(packageName, 0)
+                            val installed = packageManager.getPackageInfo(packageName, signatureFlags)
                             check(apk.packageName == packageName) { "APK предназначен для другого приложения" }
+                            @Suppress("DEPRECATION")
+                            val signedByApp = !installed.signatures.isNullOrEmpty() &&
+                                apk.signatures?.toSet() == installed.signatures?.toSet()
+                            check(signedByApp) { "Подпись APK отличается от установленного приложения" }
                             check(versionCode(apk) > versionCode(installed)) { "В скачанном APK нет более новой сборки" }
                             check(apk.versionName == call.argument<String>("version")) {
                                 "Версия APK не совпадает с записью на сервере. Попробуйте позже."
