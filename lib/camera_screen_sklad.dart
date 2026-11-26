@@ -1,12 +1,10 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'warehouse_photos.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
+import 'defect_photos.dart';
 
 import 'gallery_screen.dart';
 
@@ -36,18 +34,10 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
     initializeCamera(selectedCamera); //Initially selectedCamera = 0
 
     super.initState();
-    if (widget.brak) fistasdib();
   }
 
-  fistasdib() async {
-    //очиститм локальные файлы старые
-    final cacheDir = await getTemporaryDirectory();
-    var asdasdasd = await dirContents(cacheDir);
-    for (var asd in asdasdasd) {
-      await File(asd.path).delete();
-      print(asd.path);
-    }
-  }
+  WarehouseQueue get queue =>
+      widget.brak ? DefectPhotos.queue : WarehouseQueue.instance;
 
   late CameraController _controller; //To control the camera
   late Future<void>
@@ -67,16 +57,6 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
     _initializeControllerFuture = _controller.initialize();
   }
 
-  Future<List<FileSystemEntity>> dirContents(Directory dir) {
-    var files = <FileSystemEntity>[];
-    var completer = Completer<List<FileSystemEntity>>();
-    var lister = dir.list(recursive: false);
-    lister.listen((file) => files.add(file),
-        // should also register onError
-        onDone: () => completer.complete(files));
-    return completer.future;
-  }
-
   @override
   void dispose() {
     // Dispose of the controller when the widget is disposed.
@@ -88,14 +68,10 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
 
   final List<PhotoJob> staged = [];
   Future<void> remember(File f, {int? capturedAt}) async {
-    if (widget.brak) {
-      capturedImages.add(f);
-    } else {
-      final job = await WarehouseQueue.instance
-          .stage(widget.name, widget.politon, f, capturedAt: capturedAt);
-      staged.add(job);
-      capturedImages.add(job.draft);
-    }
+    final job = await queue.stage(widget.name, widget.politon, f,
+        capturedAt: capturedAt, detail: widget.brak ? widget.iddetal : null);
+    staged.add(job);
+    capturedImages.add(job.draft);
   }
 
   void cameraError() {
@@ -174,7 +150,7 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
               style: TextButton.styleFrom(
                 textStyle: Theme.of(context).textTheme.labelLarge,
               ),
-              child: Text(widget.brak ? 'Закрыть' : 'Сохранить и закрыть'),
+              child: Text('Сохранить и закрыть'),
               onPressed: () {
                 Navigator.pop(context, true);
               },
@@ -198,8 +174,7 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
           if (!capturedImages.isEmpty) {
             shouldPop = await _showBackDialog() ?? false;
           }
-          if (!widget.brak && shouldPop)
-            await WarehouseQueue.instance.confirm(staged);
+          if (shouldPop) await queue.confirm(staged);
           if (context.mounted && shouldPop) {
             Navigator.pop(context);
           }
@@ -289,41 +264,13 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
                           animphoto = true;
                         });
 
-                        if (!widget.brak) {
-                          try {
-                            await WarehouseQueue.instance.confirm(staged);
-                            if (context.mounted) Navigator.pop(context);
-                          } catch (_) {
-                            cameraError();
-                            if (mounted) setState(() => animphoto = false);
-                          }
-                          return;
+                        try {
+                          await queue.confirm(staged);
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (_) {
+                          cameraError();
+                          if (mounted) setState(() => animphoto = false);
                         }
-                        for (var elem in capturedImages) {
-                          final postUri = Uri.parse(
-                              "https://teplogico.ru/gnbrak/${widget.name}/${widget.iddetal}");
-                          http.MultipartRequest request =
-                              http.MultipartRequest("POST", postUri);
-
-                          var multipartFile = await http.MultipartFile.fromPath(
-                            'file_input', // Название поля для файла на сервере
-                            elem.path,
-                          );
-                          request.files.add(multipartFile);
-
-                          http.StreamedResponse response = await request.send();
-                          print(response.statusCode);
-                          // print(response.);
-                        }
-                        capturedImages.clear();
-
-                        await Future.delayed(const Duration(milliseconds: 100));
-
-                        setState(() {
-                          animphoto = false;
-                        });
-
-                        Navigator.pop(context);
                       },
                       icon: const Icon(
                         Icons.check_circle_sharp,
@@ -354,16 +301,12 @@ class _camera_screen_skladState extends State<camera_screen_sklad> {
                             MaterialPageRoute(
                                 builder: (context) => GalleryScreen(
                                     images: capturedImages,
-                                    onDelete: widget.brak
-                                        ? null
-                                        : (file) async {
-                                            final job = staged.singleWhere(
-                                                (j) =>
-                                                    j.draft.path == file.path);
-                                            await WarehouseQueue.instance
-                                                .discardDraft(job);
-                                            staged.remove(job);
-                                          })));
+                                    onDelete: (file) async {
+                                      final job = staged.singleWhere(
+                                          (j) => j.draft.path == file.path);
+                                      await queue.discardDraft(job);
+                                      staged.remove(job);
+                                    })));
                         if (mounted) setState(() {});
                       },
                       child: Container(

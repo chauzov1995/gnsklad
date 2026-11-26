@@ -1,489 +1,200 @@
-import 'dart:async';
 import 'dart:io';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:gnsklad/main.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-
-import 'package:pdf/widgets.dart' as pw;
-
+import 'package:image_picker/image_picker.dart';
+import 'main.dart';
+import 'tehhclass.dart';
 import 'gallery_screen.dart';
+import 'supplier_documents.dart';
+import 'warehouse_photos.dart';
 
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
-  postav name;
-
-  CameraScreen({Key? key, 
-    required this.name,
-    required this.cameras,
-  }) : super(key: key);
-
+  final postav name;
+  final bool useSystemCamera;
+  const CameraScreen(
+      {super.key,
+      required this.name,
+      required this.cameras,
+      this.useSystemCamera = false});
   @override
-  _CameraScreenState createState() => _CameraScreenState();
+  State<CameraScreen> createState() => _CameraScreenState();
 }
 
 class _CameraScreenState extends State<CameraScreen> {
+  CameraController? _controller;
+  late Future<void> _ready;
+  final List<File> _pages = [];
+  bool _busy = false;
+  DateTime _date = DateTime.now();
+  SupplierQueue get queue => SupplierQueue.instance;
+  int get supplierId => widget.name.id!;
   @override
   void initState() {
-    initializeCamera(selectedCamera); //Initially selectedCamera = 0
-
     super.initState();
-    fistasdib();
+    _ready = _initialize();
   }
 
-
-
-  fistasdib() async {
-
-
-
-
-    //очиститм локальные файлы старые
-    final cacheDir = await getTemporaryDirectory();
-    var asdasdasd = await dirContents(cacheDir);
-    for (var asd in asdasdasd) {
-      await File(asd.path).delete();
-      print(asd.path);
+  Future<void> _initialize() async {
+    _pages.addAll(await queue.draftPages(supplierId));
+    if (!mounted) return;
+    if (!widget.useSystemCamera && widget.cameras.isNotEmpty) {
+      _controller = CameraController(widget.cameras.first, ResolutionPreset.max,
+          enableAudio: false);
+      await _controller!.initialize();
     }
-  }
-
-  late CameraController _controller; //To control the camera
-  late Future<void>
-      _initializeControllerFuture; //Future to wait until camera initializes
-  int selectedCamera = 0;
-  List<File> capturedImages = [];
-
-  initializeCamera(int cameraIndex) async {
-    _controller = CameraController(
-      // Get a specific camera from the list of available cameras.
-      widget.cameras[cameraIndex],
-      // Define the resolution to use.
-      ResolutionPreset.max,
-    );
-
-    // Next, initialize the controller. This returns a Future.
-    _initializeControllerFuture = _controller.initialize();
-  }
-
-  Future<List<FileSystemEntity>> dirContents(Directory dir) {
-    var files = <FileSystemEntity>[];
-    var completer = Completer<List<FileSystemEntity>>();
-    var lister = dir.list(recursive: false);
-    lister.listen((file) => files.add(file),
-        // should also register onError
-        onDone: () => completer.complete(files));
-    return completer.future;
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    // Dispose of the controller when the widget is disposed.
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
-  bool animphoto = false;
-
-  final double _kPickerSheetHeight = 350.0;
-
-  Widget _buildBottomPicker(Widget picker) {
-    return Container(
-      height: _kPickerSheetHeight,
-      padding: const EdgeInsets.only(top: 6.0),
-      color: CupertinoColors.white,
-      child: DefaultTextStyle(
-        style: const TextStyle(
-          color: CupertinoColors.black,
-          fontSize: 22.0,
-        ),
-        child: GestureDetector(
-          // Blocks taps from propagating to the modal sheet and popping.
-          onTap: () {},
-          child: SafeArea(
-            top: false,
-            child: picker,
-          ),
-        ),
-      ),
-    );
-  }
-
-  DateTime dateTime = DateTime.now();
-
-  Future<void> delaydoto() async {
-    {
-      // return;
-
-      if (animphoto) return;
-      setState(() {
-        animphoto = true;
-      });
-
-
-        await _initializeControllerFuture;
-        var xFile = await _controller.takePicture();
-        setState(() {
-          capturedImages.add(File(xFile.path));
-        });
-
-
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      print("sfotal2");
-
-      setState(() {
-        animphoto = false;
-      });
-
-/*
-                    if(animphoto)return;
-                    setState(() {
-                      animphoto=true;
-                    });
-                    await _initializeControllerFuture;
-                    var xFile = await _controller.takePicture();
-                    setState(() {
-                      capturedImages.add(File(xFile.path));
-                    });
-                    print("sfotal");
-
-                    await Future.delayed(Duration(milliseconds: 500));
-
-                    print("sfotal2");
-
-
-                    setState(() {
-                      animphoto=false;
-                    });
-                 //   return;
-                    var postUri = Uri.parse("https://teplogico.ru/gn0/${widget.name.id}");
-
-                    http.MultipartRequest request =
-                        new http.MultipartRequest("POST", postUri);
-
-                    http.MultipartFile multipartFile =
-                        await http.MultipartFile.fromPath(
-                            'file_input', xFile.path);
-
-                    request.files.add(multipartFile);
-
-                    http.StreamedResponse response = await request.send();
-
-                    print(response.statusCode);
-                    print(await File(xFile.path).exists());
-                    await File(xFile.path).delete();
-                    print(await File(xFile.path).exists());
-                    */
+  void _error(Object e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e is PhotoProblem
+              ? e.message
+              : 'Не удалось завершить действие. Сохранённые страницы остались на устройстве.')));
     }
   }
 
+  Future<void> _capture() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _ready;
+      final photo = _controller != null
+          ? await _controller!.takePicture()
+          : await ImagePicker().pickImage(source: ImageSource.camera);
+      if (photo != null) {
+        final saved = await queue.capture(supplierId, File(photo.path));
+        _pages.add(saved);
+      }
+    } catch (e) {
+      _error(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
-  Future<bool?> _showBackDialog() {
-    return showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Уйти?'),
-          content: const Text(
-            'Имеются несохранённые данные',
-          ),
-          actions: <Widget>[
-            TextButton(
-              style: TextButton.styleFrom(
-                textStyle: Theme.of(context).textTheme.labelLarge,
-              ),
-              child: const Text('Остаться'),
-              onPressed: () {
-                Navigator.pop(context, false);
-              },
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                textStyle: Theme.of(context).textTheme.labelLarge,
-              ),
-              child: const Text('Закрыть'),
-              onPressed: () {
-                Navigator.pop(context, true);
-              },
-            ),
-          ],
-        );
-      },
-    );
+  Future<void> _confirm() async {
+    if (_busy || _pages.isEmpty) return;
+    final yes = await showCupertinoModalPopup<bool>(
+        context: context,
+        builder: (sheet) => Container(
+            height: 350,
+            color: Colors.white,
+            child: SafeArea(
+                top: false,
+                child: Column(children: [
+                  Expanded(
+                      child: CupertinoDatePicker(
+                          mode: CupertinoDatePickerMode.date,
+                          initialDateTime: _date,
+                          minimumYear: 1900,
+                          onDateTimeChanged: (value) => _date = value)),
+                  Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: ElevatedButton(
+                          onPressed: () => Navigator.pop(sheet, true),
+                          child: const Text('ОТПРАВИТЬ'))),
+                ]))));
+    if (yes != true || !mounted || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await queue.enqueue(
+          List.of(_pages), supplierId, widget.name.name!, _date);
+      _pages.clear();
+      // Ranking is cosmetic; it cannot undo the durable enqueue.
+      try {
+        await tehhclass.database.rawInsert(
+            'INSERT OR REPLACE INTO Test(id, sort) VALUES (?, COALESCE((SELECT sort FROM Test WHERE id = ?), 0) + 1)',
+            [supplierId, supplierId]);
+      } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'PDF сохранён на устройстве и будет отправлен на фабрику автоматически.')));
+      }
+    } catch (e) {
+      _error(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return  PopScope(
-        canPop: false,
-        onPopInvoked: (didPop) async {
-
-          if (didPop) {
-            return;
-          }
-          bool  shouldPop=true;
-          if (!capturedImages.isEmpty) {
-             shouldPop = await _showBackDialog() ?? false;
-          }
-          if (context.mounted && shouldPop) {
-            Navigator.pop(context);
-          }
-        },
-
-    child:Scaffold(
-
-      backgroundColor: Colors.black,
-      body: Column(
-        children: [
+  Widget build(BuildContext context) => PopScope(
+      canPop: !_busy,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+            child: Column(children: [
           Expanded(
               child: FutureBuilder<void>(
-            future: _initializeControllerFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done) {
-                // If the Future is complete, display the preview.
-                return SizedBox(
-                    width: MediaQuery.of(context).size.width,
-                    child: FittedBox(
-                      fit: BoxFit.fitWidth,
-                      child: SizedBox(
-                        height: MediaQuery.of(context).size.width *
-                            _controller.value.aspectRatio,
-                        width: MediaQuery.of(context).size.width,
-                        child: CameraPreview(
-                          _controller,
-                          child: AnimatedContainer(
-                            //  width: animphoto ? 200.0 : 100.0,
-                            //   height: animphoto ? 100.0 : 200.0,
-                            color:
-                                animphoto ? Colors.white70 : Colors.transparent,
-                            //    alignment:
-                            //    animphoto ? Alignment.center : AlignmentDirectional.topCenter,
-                            duration: const Duration(seconds: 1),
-                            curve: Curves.fastOutSlowIn,
-
-                            child: animphoto
-                                ? const Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.cloud_upload,
-                                            size: 75, color: Colors.black),
-                                        Text(
-                                          "Отправка на сервер",
-                                          style: TextStyle(fontSize: 18),
-                                        )
-                                      ],
-                                    ),
-                                  )
-                                : Container(),
-                          ),
-                        ),
-                      )
-                      // new CameraPreview(_controller),
-
-                      ,
-                    ));
-              } else {
-                // Otherwise, display a loading indicator.
-                return const Center(child: CircularProgressIndicator());
-              }
-            },
-          )),
-
-          //  ),
-
-          Container(
-            color: Colors.black,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 35),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () async {
-                    if (capturedImages.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Ничего не сфотографировано"),
-                      ));
-
-                      return;
+                  future: _ready,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return const Center(
+                          child: Text(
+                              'Не удалось открыть камеру. Вернитесь и попробуйте ещё раз.',
+                              style: TextStyle(color: Colors.white)));
                     }
-
-                    showCupertinoModalPopup<void>(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return _buildBottomPicker(
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Expanded(
-                                  child: CupertinoDatePicker(
-                                mode: CupertinoDatePickerMode.date,
-                                initialDateTime: dateTime,
-                                onDateTimeChanged: (DateTime newDateTime) {
-                                  if (mounted) {
-                                    print(
-                                        "Your Selected Date: ${newDateTime.day}");
-                                    setState(() => dateTime = newDateTime);
-                                  }
-                                },
-                              )),
-                              Row(
-                                mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(20.0),
-                                    child: Container(
-                                      // width: double.,
-                                      child: ElevatedButton(
-                                        onPressed: () async {
-                                          Navigator.of(context).pop();
-
-                                          if (animphoto) return;
-                                          setState(() {
-                                            animphoto = true;
-                                          });
-
-                                          final pdf = pw.Document();
-
-                                          for (var elem in capturedImages) {
-                                            final image = pw.MemoryImage(
-                                              File(elem.path).readAsBytesSync(),
-                                            );
-
-                                            pdf.addPage(pw.Page(
-                                                build: (pw.Context context) {
-                                              return pw.Center(
-                                                child: pw.Image(image),
-                                              ); // Center
-                                            })); // Page
-                                          }
-                                          var pathsave =
-                                              "${(await getTemporaryDirectory())
-                                                      .path}/example.pdf";
-                                          final file = File(pathsave);
-                                          await file
-                                              .writeAsBytes(await pdf.save());
-
-                                          var postUri = Uri.parse(
-                                              "https://teplogico.ru/gn0/${widget.name.id}/${dateTime.millisecondsSinceEpoch / 1000}");
-
-                                          http.MultipartRequest request =
-                                              http.MultipartRequest(
-                                                  "POST", postUri);
-
-                                          http.MultipartFile multipartFile =
-                                              await http.MultipartFile.fromPath(
-                                                  'file_input', pathsave);
-
-                                          request.files.add(multipartFile);
-
-                                          http.StreamedResponse response =
-                                              await request.send();
-                                          print(response.statusCode);
-
-                                          capturedImages.clear();
-
-                                          await Future.delayed(
-                                              const Duration(milliseconds: 100));
-
-                                          setState(() {
-                                            animphoto = false;
-                                          });
-
-                                          //         capturedImages
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          // primary: Colors.pinkAccent,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(25),
-                                          ),
-                                          //   elevation: 15.0,
-                                        ),
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(15.0),
-                                          child: Text(
-                                            'ОТПРАВИТЬ',
-                                            style: TextStyle(fontSize: 15),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            ],
-                          ),
-                        );
-                      },
-                    );
-
-                    return;
-                    if (widget.cameras.length > 1) {
-                      setState(() {
-                        selectedCamera = selectedCamera == 0 ? 1 : 0;
-                        initializeCamera(selectedCamera);
-                      });
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('No secondary camera found'),
-                        duration: Duration(seconds: 2),
-                      ));
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Center(child: CircularProgressIndicator());
                     }
-                  },
-                  icon: const Icon(
-                    Icons.check_circle_sharp,
-                    color: Colors.green,
-                    size: 50,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-                ),
-                GestureDetector(
-                  onTap: () async {
-                    await delaydoto();
-                  },
-                  child: Container(
-                    height: 60,
-                    width: 60,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    if (capturedImages.isEmpty) return;
-                    print(capturedImages[0]);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                GalleryScreen(images: capturedImages)));
-                  },
-                  child: Container(
-                    height: 60,
-                    width: 60,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white),
-                      color: Colors.black,
-                      image: capturedImages.isNotEmpty
-                          ? DecorationImage(
-                              image: FileImage(capturedImages.last),
-                              fit: BoxFit.cover)
-                          : null,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ));
-  }
+                    return Stack(alignment: Alignment.center, children: [
+                      if (_controller != null)
+                        CameraPreview(_controller!)
+                      else
+                        const Icon(Icons.camera_alt,
+                            color: Colors.white, size: 80),
+                      if (_busy)
+                        const ColoredBox(
+                            color: Colors.black54,
+                            child: Center(child: CircularProgressIndicator())),
+                    ]);
+                  })),
+          Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 35),
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                        icon: const Icon(Icons.check,
+                            color: Colors.green, size: 40),
+                        onPressed: _busy || _pages.isEmpty ? null : _confirm),
+                    IconButton(
+                        icon: const Icon(Icons.circle,
+                            color: Colors.white, size: 55),
+                        onPressed: _busy ? null : _capture),
+                    SizedBox(
+                        width: 60,
+                        height: 60,
+                        child: _pages.isEmpty
+                            ? const SizedBox.shrink()
+                            : GestureDetector(
+                                onTap: _busy
+                                    ? null
+                                    : () async {
+                                        await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) => GalleryScreen(
+                                                    images: _pages,
+                                                    onDelete: (file) =>
+                                                        queue.discardPage(
+                                                            supplierId,
+                                                            file))));
+                                        if (mounted) setState(() {});
+                                      },
+                                child: Image.file(_pages.last,
+                                    fit: BoxFit.cover))),
+                  ])),
+        ])),
+      ));
 }

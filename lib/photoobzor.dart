@@ -1,91 +1,51 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:photo_view/photo_view.dart';
+import 'defect_photos.dart';
 
-// Define a custom Form widget.
-class photoobzor extends StatefulWidget {
-
-  dynamic idfot;
-  String table;
-  photoobzor(this.idfot, this.table);
-
-
+class DefectPhotoViewer extends StatefulWidget {
+  const DefectPhotoViewer(this.id, {super.key});
+  final int id;
   @override
-  _photoobzorState createState() => _photoobzorState();
+  State<DefectPhotoViewer> createState() => _ViewerState();
 }
 
-
-class _photoobzorState extends State<photoobzor> {
-
-  _photoobzorState();
+class _ViewerState extends State<DefectPhotoViewer> {
+  bool busy = false;
+  Future<void> remove() async {
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+              title: const Text('Удалить фото брака?'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Отмена')),
+                TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Удалить')),
+              ],
+            ));
+    if (confirmed != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await DefectPhotos.remove(widget.id);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
+        setState(() => busy = false);
+      }
+    }
+  }
 
   @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  void _deleteItem(BuildContext context) {
-    // Логика удаления, например, показ диалога подтверждения
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Удалить'),
-        content: const Text('Вы уверены, что хотите удалить элемент?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Отмена
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () async {
-              // TODO: Добавьте логику удаления
-
-
-              var response = await http
-                  .get(Uri.parse("https://teplogico.ru/gndeletefot/${widget.idfot['id'].toString()}/${widget.table.toString()}"));
-
-
-
-
-
-              Navigator.pop(context);
-              Navigator.pop(context);
-
-            },
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("id"+widget.idfot['id'].toString()),
-          actions: [
-      IconButton(
-      icon: const Icon(Icons.delete),
-      tooltip: 'Удалить',
-      onPressed: () => _deleteItem(context),
-    ),
-    ],
-      ),
-      body: Container(
-          child: PhotoView(
-            imageProvider: CachedNetworkImageProvider(
-                widget.idfot['path']
-            )
-          )),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Фото брака'), actions: [
+          IconButton(
+              onPressed: busy ? null : remove,
+              tooltip: 'Удалить',
+              icon: const Icon(Icons.delete)),
+        ]),
+        body: Center(child: InteractiveViewer(child: DefectImage(widget.id))),
+      );
 }

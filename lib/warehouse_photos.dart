@@ -31,6 +31,8 @@ class PhotoApi {
   static Future<Uint8List> request(String path,
       {File? file,
       String? method,
+      ContentType? contentType,
+      int maxResponseBytes = 32 * 1024 * 1024,
       Duration deadline = const Duration(seconds: 55)}) async {
     final uri = Uri.parse('$base$path');
     if (token.length < 32 || uri.scheme != 'https') {
@@ -48,7 +50,7 @@ class PhotoApi {
         req.followRedirects = false;
         req.headers.set('Authorization', 'Bearer $token');
         if (file != null) {
-          req.headers.contentType = ContentType.binary;
+          req.headers.contentType = contentType ?? ContentType.binary;
           req.contentLength = await file.length();
           await req.addStream(file.openRead());
         }
@@ -56,7 +58,7 @@ class PhotoApi {
         final b = BytesBuilder(copy: false);
         await for (final chunk in res) {
           b.add(chunk);
-          if (b.length > 32 * 1024 * 1024) {
+          if (b.length > maxResponseBytes) {
             throw const PhotoProblem('Ответ слишком большой');
           }
         }
@@ -84,6 +86,20 @@ class PhotoApi {
                 'У этого фото не сохранена дата съёмки, поэтому удалить его нельзя.');
           }
           const reasons = {
+            'defect_delete_denied':
+                'Для удаления этого фото брака нужно отдельное разрешение.',
+            'supplier_catalog_unavailable':
+                'справочник поставщиков ещё не подключён на фабрике',
+            'supplier_catalog_unverified':
+                'справочник поставщиков не подтверждён',
+            'ambiguous_supplier_catalog':
+                'совпадают папки разных поставщиков, требуется проверка справочника',
+            'supplier_not_found': 'поставщик отсутствует в справочнике фабрики',
+            'supplier_folder_changed':
+                'папка поставщика изменилась, требуется проверка',
+            'invalid_pdf': 'PDF повреждён или не поддерживается',
+            'invalid_document_metadata':
+                'неверная дата или идентификатор документа',
             'ambiguous_order': 'несколько папок заказа',
             'order_missing': 'нет папки заказа',
             'storage_unavailable': 'хранилище недоступно',
@@ -177,10 +193,13 @@ class WarehouseQueue extends ChangeNotifier {
   static Future<void> start() async {
     instance = WarehouseQueue(Directory(
         '${(await getApplicationSupportDirectory()).path}/warehouse-v1'));
-    await instance.recover();
-    instance._timer =
-        Timer.periodic(const Duration(seconds: 15), (_) => instance.kick());
-    instance.kick();
+    await instance.startDelivery();
+  }
+
+  Future<void> startDelivery() async {
+    await recover();
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) => kick());
+    kick();
   }
 
   Timer? _timer;
@@ -243,7 +262,7 @@ class WarehouseQueue extends ChangeNotifier {
   }
 
   Future<PhotoJob> stage(String order, int politon, File source,
-      {int? capturedAt}) async {
+      {int? capturedAt, String? detail}) async {
     if (!orderPattern.hasMatch(order) || (politon != 0 && politon != 1)) {
       throw const PhotoProblem('Неверный заказ');
     }
@@ -262,7 +281,8 @@ class WarehouseQueue extends ChangeNotifier {
         jsonEncode({
           'path': source.path,
           'size': await source.length(),
-          'capturedAt': capturedAt
+          'capturedAt': capturedAt,
+          if (detail != null) 'detail': detail
         }),
         flush: true);
     await _copy(source, tmp);

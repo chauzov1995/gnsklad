@@ -1,3 +1,4 @@
+import 'defect_photos.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -65,8 +66,18 @@ class _brakState extends State<brak> with WidgetsBindingObserver {
 
     HttpOverrides.global = MyHttpOverrides();
     initScanner4();
+    DefectPhotos.queue.addListener(_refreshPhotos);
 
     firstload();
+  }
+
+  int _photoRequest = 0;
+  String? _photoOrder, _photoDetail;
+  String? _photoError;
+  int _waitingPhotos = 0;
+
+  void _refreshPhotos() {
+    if (mounted && articul.isNotEmpty) selectzakaz();
   }
 
   List<dynamic> photospisurl = [];
@@ -375,18 +386,33 @@ ORDER BY mwz.ID DESC
   }
 
   Future<void> selectzakaz() async {
-    setState(() {
-      photospisurl = [];
-    });
-    var response = await http
-        .get(Uri.parse("https://teplogico.ru/gn1brak/" + articul.toString()));
-    photospisurl = json.decode(response.body);
-    print(photospisurl);
-    setState(() {});
+    if (!mounted) return;
+    final selected = articul, order = orderId, request = ++_photoRequest;
+    if (_photoOrder != order || _photoDetail != selected) {
+      setState(() {
+        _photoOrder = order;
+        _photoDetail = selected;
+        photospisurl = [];
+        _photoError = null;
+        _waitingPhotos = 0;
+      });
+    }
+    if (selected.isEmpty) return;
+    bool current() => mounted && request == _photoRequest &&
+        articul == selected && orderId == order;
+    try {
+      final jobs = await DefectPhotos.queue.jobs(order: order);
+      if (current()) setState(() => _waitingPhotos = jobs.length);
+      final rows = await DefectPhotos.list(order: order, detail: selected);
+      if (current()) setState(() { photospisurl = rows; _photoError = null; });
+    } catch (_) {
+      if (current()) setState(() => _photoError = 'Не удалось обновить фотографии с фабрики');
+    }
   }
 
   @override
   void dispose() {
+    DefectPhotos.queue.removeListener(_refreshPhotos);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -476,34 +502,21 @@ WHERE
       username: username,
       password: password,
     );
-    print("https://teplogico.ru/gn1brakrassil/" + orderId.toString());
-    var response = await http.get(
-        Uri.parse("https://teplogico.ru/gn1brakrassil/" + orderId.toString()));
-    print(json.decode(response.body));
-    List<dynamic> urls = json.decode(response.body);
-    print("asdasd");
-    print(urls);
-
+    final urls = await DefectPhotos.list(order:orderId.toString());
     // Скачиваем все файлы
     final tempDir = await getTemporaryDirectory();
     final attachments = <FileAttachment>[];
 
     for (int i = 0; i < urls.length; i++) {
-      final url = urls[i]['path'];
+
       final l_iddetal = urls[i]['iddetal'];
       final l_id = urls[i]['id'];
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final file = File('${tempDir.path}/attachment_$i.jpg');
-        await file.writeAsBytes(response.bodyBytes);
-
-        attachments.add(FileAttachment(file)
-          ..location = Location.attachment
-          ..fileName = '${l_iddetal}_${l_id}.jpg');
-      } else {
-        print('Ошибка при загрузке: $url');
-      }
+      final bytes = await DefectPhotos.read(l_id as int);
+      final file = File('${tempDir.path}/attachment_$i.jpg');
+      await file.writeAsBytes(bytes);
+      attachments.add(FileAttachment(file)
+        ..location = Location.attachment
+        ..fileName = '${l_iddetal}_${l_id}.jpg');
     }
 
     // Создаём письмо
@@ -965,7 +978,8 @@ WHERE CustomID = ? AND Art_Material = ?;
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    // const Text('Фото:'),
+                    if (_waitingPhotos > 0) Text('В очереди этого заказа на устройстве: $_waitingPhotos'),
+                    if (_photoError != null) Text(_photoError!),
                     Container(
                       padding: EdgeInsets.only(left: 5, right: 5, top: 5),
                       // color: Colors.amber,
@@ -980,31 +994,13 @@ WHERE CustomID = ? AND Art_Material = ?;
                         children: List.generate(
                           photospisurl.length,
                           (int index) => GestureDetector(
-                            child: CachedNetworkImage(
-                              imageBuilder: (context, imageProvider) =>
-                                  Container(
-                                decoration: BoxDecoration(
-                                  image: DecorationImage(
-                                    image: imageProvider,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                              imageUrl: photospisurl[index]['path'],
-                              placeholder: (context, url) => Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  Icon(Icons.error),
-                            ),
+                            child: DefectImage(photospisurl[index]['id'] as int,fit:BoxFit.cover),
                             onTap: () async {
                               print("adsasdas");
                               await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => photoobzor(
-                                          photospisurl[index],
-                                          "chauzov_gn_fotobrak")));
+                                      builder: (context) => DefectPhotoViewer(photospisurl[index]['id'] as int)));
 
                               selectzakaz();
                             },
